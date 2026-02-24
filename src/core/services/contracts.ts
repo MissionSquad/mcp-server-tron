@@ -1,5 +1,6 @@
 import { getTronWeb, getWallet } from "./clients.js";
 import { MULTICALL2_ABI, MULTICALL3_ABI } from "./multicall-abi.js";
+import { waitForTransaction } from "./transactions.js";
 
 /**
  * Read from a smart contract (view/pure functions)
@@ -280,5 +281,77 @@ export async function multicall(
     });
   } catch (error: any) {
     return fallbackToSimulation(error.message);
+  }
+}
+
+/**
+ * Deploy a smart contract to the TRON network
+ */
+export async function deployContract(
+  privateKey: string,
+  params: {
+    abi: any[];
+    bytecode: string;
+    args?: any[];
+    name?: string;
+    feeLimit?: number; // In Sun, default 1,000,000,000 (1000 TRX)
+    originEnergyLimit?: number;
+    userPercentage?: number;
+  },
+  network = "mainnet",
+) {
+  const tronWeb = getWallet(privateKey, network);
+
+  try {
+    const deploymentOptions = {
+      abi: params.abi,
+      bytecode: params.bytecode.startsWith("0x") ? params.bytecode : "0x" + params.bytecode,
+      feeLimit: params.feeLimit || 1_000_000_000,
+      name: params.name || "Contract",
+      parameters: params.args || [],
+      originEnergyLimit: params.originEnergyLimit || 10_000_000,
+      userPercentage: params.userPercentage || 0,
+    };
+
+    // 1. Create transaction
+    const transaction = await tronWeb.transactionBuilder.createSmartContract(
+      deploymentOptions,
+      tronWeb.defaultAddress.hex,
+    );
+
+    // 2. Sign transaction
+    const signedTx = await tronWeb.trx.sign(transaction, privateKey);
+
+    // 3. Broadcast transaction
+    const result = await tronWeb.trx.sendRawTransaction(signedTx);
+
+    if (result && result.result) {
+      const tx = result.transaction;
+      const txID = tx.txID;
+
+      // Contract address is only available after tx is confirmed; get it from getTransactionInfo
+      const info = await waitForTransaction(txID, network);
+      const contractAddressHex = info?.contract_address as string | undefined;
+      let contractAddress: string | undefined;
+      if (contractAddressHex) {
+        const hex = contractAddressHex.replace(/^0x/, "");
+        // TRON contract_address from API is often 20 bytes (40 hex chars); base58 needs 41 prefix
+        const withPrefix = hex.length === 40 && !hex.startsWith("41") ? "41" + hex : hex;
+        const decoded = tronWeb.address.fromHex(withPrefix);
+        contractAddress = typeof decoded === "string" ? decoded : undefined;
+      } else {
+        contractAddress = undefined;
+      }
+
+      return {
+        txID,
+        contractAddress,
+        message: "Contract deployment transaction broadcast successfully",
+      };
+    } else {
+      throw new Error(`Broadcast failed: ${JSON.stringify(result)}`);
+    }
+  } catch (error: any) {
+    throw new Error(`Deploy contract failed: ${error.message}`);
   }
 }

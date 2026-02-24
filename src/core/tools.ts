@@ -801,6 +801,91 @@ export function registerTRONTools(server: McpServer) {
     },
   );
 
+  server.registerTool(
+    "deploy_contract",
+    {
+      description: "Deploy a smart contract to the TRON network using ABI and Bytecode.",
+      inputSchema: {
+        abi: z.array(z.record(z.unknown())).describe("The contract ABI (array of objects)"),
+        bytecode: z.string().describe("The compiled contract bytecode (hex string)"),
+        args: z
+          .array(
+            z.union([
+              z.string(),
+              z.number(),
+              z.boolean(),
+              z.array(z.string()), // String array
+              z.array(z.number()), // Number array
+              z.record(z.unknown()), // Object (tuple)
+            ]),
+          )
+          .optional()
+          .describe("Constructor arguments"),
+        name: z.string().optional().describe("Contract name (optional)"),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+        feeLimit: z
+          .number()
+          .optional()
+          .describe("Fee limit in Sun (default: 1,000,000,000 = 1000 TRX)"),
+      },
+      annotations: {
+        title: "Deploy Smart Contract",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ abi, bytecode, args = [], name, network = "mainnet", feeLimit }) => {
+      try {
+        const privateKey = services.getConfiguredPrivateKey();
+        const senderAddress = services.getWalletAddressFromKey();
+
+        const result = await services.deployContract(
+          privateKey,
+          {
+            abi,
+            bytecode,
+            args,
+            name,
+            feeLimit,
+          },
+          network,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  ...result,
+                  from: senderAddress,
+                  constructorArgs: args.length > 0 ? args : undefined,
+                  message:
+                    "Deployment transaction broadcast. Use get_transaction_info to wait for confirmation.",
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deploying contract: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ============================================================================
   // TRANSFER TOOLS (Write operations)
   // ============================================================================

@@ -25,6 +25,7 @@ vi.mock("../../src/core/services/index", async () => {
     getLatestBlock: vi.fn(),
     getTransaction: vi.fn(),
     getTransactionInfo: vi.fn(),
+    deployContract: vi.fn(),
   };
 });
 
@@ -51,7 +52,7 @@ describe("TRON Tools Unit Tests", () => {
   });
 
   describe("Registration", () => {
-    it("should register all 17 TRON tools", () => {
+    it("should register all 18 TRON tools", () => {
       const expectedTools = [
         "get_wallet_address",
         "get_chain_info",
@@ -70,6 +71,7 @@ describe("TRON Tools Unit Tests", () => {
         "transfer_trx",
         "transfer_trc20",
         "sign_message",
+        "deploy_contract",
       ];
       expectedTools.forEach((tool) => {
         expect(registeredTools.has(tool)).toBe(true);
@@ -203,6 +205,31 @@ describe("TRON Tools Unit Tests", () => {
       const result = await registeredTools.get("sign_message").handler({ message: "hi" });
       const content = JSON.parse(result.content[0].text);
       expect(content.signature).toBe("sig");
+    });
+
+    it("deploy_contract should call deployContract service", async () => {
+      (services.getConfiguredPrivateKey as any).mockReturnValue("key");
+      (services.deployContract as any).mockResolvedValue({
+        txID: "tx123",
+        contractAddress: "Taddr",
+      });
+
+      const result = await registeredTools.get("deploy_contract").handler({
+        abi: [],
+        bytecode: "0x123",
+        network: "nile",
+      });
+
+      expect(services.deployContract).toHaveBeenCalledWith(
+        "key",
+        expect.objectContaining({
+          bytecode: "0x123",
+        }),
+        "nile",
+      );
+      const content = JSON.parse(result.content[0].text);
+      expect(content.txID).toBe("tx123");
+      expect(content.contractAddress).toBe("Taddr");
     });
   });
 });
