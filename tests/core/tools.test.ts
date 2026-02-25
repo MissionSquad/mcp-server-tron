@@ -26,6 +26,7 @@ vi.mock("../../src/core/services/index", async () => {
     getTransaction: vi.fn(),
     getTransactionInfo: vi.fn(),
     deployContract: vi.fn(),
+    estimateEnergy: vi.fn(),
   };
 });
 
@@ -52,7 +53,7 @@ describe("TRON Tools Unit Tests", () => {
   });
 
   describe("Registration", () => {
-    it("should register all 18 TRON tools", () => {
+    it("should register all 19 TRON tools", () => {
       const expectedTools = [
         "get_wallet_address",
         "get_chain_info",
@@ -72,6 +73,7 @@ describe("TRON Tools Unit Tests", () => {
         "transfer_trc20",
         "sign_message",
         "deploy_contract",
+        "estimate_energy",
       ];
       expectedTools.forEach((tool) => {
         expect(registeredTools.has(tool)).toBe(true);
@@ -229,7 +231,35 @@ describe("TRON Tools Unit Tests", () => {
       );
       const content = JSON.parse(result.content[0].text);
       expect(content.txID).toBe("tx123");
+      expect(content.txID).toBe("tx123");
       expect(content.contractAddress).toBe("Taddr");
+    });
+
+    it("estimate_energy should call estimateEnergy service", async () => {
+      (services.estimateEnergy as any).mockResolvedValue({
+        energyUsed: 1000,
+        energyPenalty: 100,
+        totalEnergy: 1100,
+      });
+
+      const params = {
+        address: "Tcontract",
+        functionName: "test",
+        abi: [],
+        args: [1],
+      };
+
+      const result = await registeredTools.get("estimate_energy").handler(params);
+
+      expect(services.estimateEnergy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: "Tcontract",
+          functionName: "test",
+        }),
+        "mainnet",
+      );
+      const content = JSON.parse(result.content[0].text);
+      expect(content.totalEnergy).toBe(1100);
     });
   });
 });

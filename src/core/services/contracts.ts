@@ -99,10 +99,24 @@ export async function fetchContractABI(contractAddress: string, network = "mainn
  * Parse ABI (helper to ensure correct format for TronWeb if needed)
  */
 export function parseABI(abiJson: string | any[]): any[] {
+  let abi: any[];
   if (typeof abiJson === "string") {
-    return JSON.parse(abiJson);
+    abi = JSON.parse(abiJson);
+  } else {
+    abi = abiJson;
   }
-  return abiJson;
+
+  // Deep copy and normalize field names/types to lowercase to ensure TronWeb compatibility
+  return abi.map((item) => {
+    const newItem = { ...item };
+    if (newItem.type && typeof newItem.type === "string") {
+      newItem.type = newItem.type.toLowerCase();
+    }
+    if (newItem.stateMutability && typeof newItem.stateMutability === "string") {
+      newItem.stateMutability = newItem.stateMutability.toLowerCase();
+    }
+    return newItem;
+  });
 }
 
 /**
@@ -366,5 +380,78 @@ export async function deployContract(
     }
   } catch (error: any) {
     throw new Error(`Deploy contract failed: ${error.message}`);
+  }
+}
+
+/**
+ * Estimate energy consumption for a contract call
+ */
+export async function estimateEnergy(
+  params: {
+    address: string;
+    functionName: string;
+    args?: any[];
+    abi: any[];
+    ownerAddress?: string;
+  },
+  network = "mainnet",
+) {
+  const tronWeb = getTronWeb(network);
+
+  try {
+    const ownerAddress = params.ownerAddress || tronWeb.defaultAddress.base58;
+    if (!ownerAddress) {
+      throw new Error(
+        "Missing ownerAddress for energy estimation. Please provide an address or configure a wallet.",
+      );
+    }
+
+    // Use normalized ABI
+    const normalizedAbi = parseABI(params.abi);
+
+    // Find function definition in normalized ABI
+    const func = normalizedAbi.find(
+      (item) => item.type === "function" && item.name === params.functionName,
+    );
+    if (!func) {
+      throw new Error(`Function ${params.functionName} not found in ABI`);
+    }
+
+    // Build function signature: name(type1,type2,...)
+    const inputTypes = (func.inputs || []).map((i: any) => i.type);
+    const signature = `${params.functionName}(${inputTypes.join(",")})`;
+
+    // Map args to Typed Parameters format: [{type: '...', value: '...'}]
+    const typedParams = (params.args || []).map((val: any, index: number) => {
+      return {
+        type: inputTypes[index],
+        value: val,
+      };
+    });
+
+    // TronWeb's triggerConstantContract with signature and typed parameters
+    const result = await tronWeb.transactionBuilder.triggerConstantContract(
+      params.address,
+      signature,
+      {},
+      typedParams,
+      ownerAddress,
+    );
+
+    if (result && result.result && result.result.result) {
+      return {
+        energyUsed: result.energy_used || 0,
+        energyPenalty: result.energy_penalty || 0,
+        totalEnergy: (result.energy_used || 0) + (result.energy_penalty || 0),
+      };
+    } else {
+      const errorMsg =
+        result && result.result && result.result.message
+          ? Buffer.from(result.result.message, "hex").toString()
+          : JSON.stringify(result);
+      throw new Error(`Estimate energy failed: ${errorMsg}`);
+    }
+  } catch (error: any) {
+    throw new Error(`Estimate energy error: ${error.message}`);
   }
 }

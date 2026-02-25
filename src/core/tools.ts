@@ -886,6 +886,73 @@ export function registerTRONTools(server: McpServer) {
     },
   );
 
+  server.registerTool(
+    "estimate_energy",
+    {
+      description: "Estimate energy consumption for a smart contract call (simulation).",
+      inputSchema: {
+        address: z.string().describe("Contract address"),
+        functionName: z.string().describe("Function name to call"),
+        args: z.array(z.any()).optional().describe("Function arguments"),
+        abi: z.array(z.any()).describe("Contract ABI (required for encoding)"),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+        ownerAddress: z
+          .string()
+          .optional()
+          .describe("Caller address for simulation. Defaults to configured wallet."),
+      },
+      annotations: {
+        title: "Estimate Energy",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ address, functionName, args = [], abi, network = "mainnet", ownerAddress }) => {
+      try {
+        const result = await services.estimateEnergy(
+          {
+            address,
+            functionName,
+            args,
+            abi,
+            ownerAddress,
+          },
+          network,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  address,
+                  functionName,
+                  ...result,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error estimating energy: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ============================================================================
   // TRANSFER TOOLS (Write operations)
   // ============================================================================
