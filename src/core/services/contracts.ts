@@ -216,9 +216,9 @@ export async function multicall(
     // TronWeb might wrap the result array in another array
     const finalResults =
       Array.isArray(results) &&
-      results.length === 1 &&
-      Array.isArray(results[0]) &&
-      (Array.isArray(results[0][0]) || typeof results[0][0] === "object")
+        results.length === 1 &&
+        Array.isArray(results[0]) &&
+        (Array.isArray(results[0][0]) || typeof results[0][0] === "object")
         ? results[0]
         : results;
 
@@ -316,7 +316,7 @@ export async function deployContract(
     // 1. Create transaction
     const transaction = await tronWeb.transactionBuilder.createSmartContract(
       deploymentOptions,
-      tronWeb.defaultAddress.hex,
+      tronWeb.defaultAddress.hex as string,
     );
 
     // 2. Sign transaction
