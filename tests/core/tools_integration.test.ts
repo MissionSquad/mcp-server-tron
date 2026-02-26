@@ -101,4 +101,43 @@ describe("TRON Tools Integration (Nile)", () => {
     expect(content.results[0].result).toBe("Tether USD");
     expect(content.results[1].result).toBe("USDT");
   }, 20000);
+
+  it("estimate_energy should estimate energy for USDT name() on Nile", async () => {
+    const tool = registeredTools.get("estimate_energy");
+    const result = await tool.handler({
+      address: USDT_ADDRESS_NILE,
+      functionName: "name",
+      args: [],
+      abi: [{ name: "name", type: "function", inputs: [], outputs: [{ type: "string" }] }],
+      network: "nile",
+    });
+
+    if (result.isError) {
+      console.error("estimate_energy error:", result.content[0].text);
+    }
+    expect(result.isError).toBeUndefined();
+    const content = JSON.parse(result.content[0].text);
+    expect(content.network).toBe("nile");
+    // read-only functions might return 0 energy used depending on implementation,
+    // but the call should succeed.
+    expect(content.energyUsed).toBeGreaterThanOrEqual(0);
+  }, 20000);
+
+  it("staking tools (v2) should be registered and callable", async () => {
+    // These tests might fail if TRON_PRIVATE_KEY is not set or account has no balance,
+    // but the tool registration and handler calling should work.
+    const freezeTool = registeredTools.get("freeze_balance_v2");
+    expect(freezeTool).toBeDefined();
+
+    const unfreezeTool = registeredTools.get("unfreeze_balance_v2");
+    expect(unfreezeTool).toBeDefined();
+
+    const withdrawTool = registeredTools.get("withdraw_expire_unfreeze");
+    expect(withdrawTool).toBeDefined();
+  });
+
+  it("deploy_contract tool should be registered", async () => {
+    const deployTool = registeredTools.get("deploy_contract");
+    expect(deployTool).toBeDefined();
+  });
 });

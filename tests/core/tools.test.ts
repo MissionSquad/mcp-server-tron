@@ -27,6 +27,9 @@ vi.mock("../../src/core/services/index", async () => {
     getTransactionInfo: vi.fn(),
     deployContract: vi.fn(),
     estimateEnergy: vi.fn(),
+    freezeBalanceV2: vi.fn(),
+    unfreezeBalanceV2: vi.fn(),
+    withdrawExpireUnfreeze: vi.fn(),
   };
 });
 
@@ -53,7 +56,7 @@ describe("TRON Tools Unit Tests", () => {
   });
 
   describe("Registration", () => {
-    it("should register all 19 TRON tools", () => {
+    it("should register all 22 TRON tools", () => {
       const expectedTools = [
         "get_wallet_address",
         "get_chain_info",
@@ -74,6 +77,9 @@ describe("TRON Tools Unit Tests", () => {
         "sign_message",
         "deploy_contract",
         "estimate_energy",
+        "freeze_balance_v2",
+        "unfreeze_balance_v2",
+        "withdraw_expire_unfreeze",
       ];
       expectedTools.forEach((tool) => {
         expect(registeredTools.has(tool)).toBe(true);
@@ -260,6 +266,50 @@ describe("TRON Tools Unit Tests", () => {
       );
       const content = JSON.parse(result.content[0].text);
       expect(content.totalEnergy).toBe(1100);
+    });
+  });
+
+  describe("Staking Tools", () => {
+    it("freeze_balance_v2 should call freezeBalanceV2 service", async () => {
+      (services.getConfiguredPrivateKey as any).mockReturnValue("key");
+      (services.freezeBalanceV2 as any).mockResolvedValue("tx123");
+
+      const result = await registeredTools.get("freeze_balance_v2").handler({
+        amount: "1000000",
+        resource: "ENERGY",
+      });
+
+      expect(services.freezeBalanceV2).toHaveBeenCalledWith("key", "1000000", "ENERGY", "mainnet");
+      const content = JSON.parse(result.content[0].text);
+      expect(content.txHash).toBe("tx123");
+    });
+
+    it("unfreeze_balance_v2 should call unfreezeBalanceV2 service", async () => {
+      (services.getConfiguredPrivateKey as any).mockReturnValue("key");
+      (services.unfreezeBalanceV2 as any).mockResolvedValue("tx456");
+
+      const result = await registeredTools.get("unfreeze_balance_v2").handler({
+        amount: "500000",
+        resource: "BANDWIDTH",
+        network: "nile",
+      });
+
+      expect(services.unfreezeBalanceV2).toHaveBeenCalledWith("key", "500000", "BANDWIDTH", "nile");
+      const content = JSON.parse(result.content[0].text);
+      expect(content.txHash).toBe("tx456");
+    });
+
+    it("withdraw_expire_unfreeze should call withdrawExpireUnfreeze service", async () => {
+      (services.getConfiguredPrivateKey as any).mockReturnValue("key");
+      (services.withdrawExpireUnfreeze as any).mockResolvedValue("tx789");
+
+      const result = await registeredTools.get("withdraw_expire_unfreeze").handler({
+        network: "nile",
+      });
+
+      expect(services.withdrawExpireUnfreeze).toHaveBeenCalledWith("key", "nile");
+      const content = JSON.parse(result.content[0].text);
+      expect(content.txHash).toBe("tx789");
     });
   });
 });
