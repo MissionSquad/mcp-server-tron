@@ -1,5 +1,6 @@
 import { getTronWeb, getWallet } from "./clients.js";
 import { MULTICALL2_ABI, MULTICALL3_ABI } from "./multicall-abi.js";
+import { waitForTransaction } from "./transactions.js";
 
 /**
  * Read from a smart contract (view/pure functions)
@@ -98,10 +99,40 @@ export async function fetchContractABI(contractAddress: string, network = "mainn
  * Parse ABI (helper to ensure correct format for TronWeb if needed)
  */
 export function parseABI(abiJson: string | any[]): any[] {
+  let abi: any[];
   if (typeof abiJson === "string") {
-    return JSON.parse(abiJson);
+    abi = JSON.parse(abiJson);
+  } else {
+    abi = abiJson;
   }
-  return abiJson;
+
+  // Deep copy and normalize field names/types to lowercase to ensure TronWeb compatibility
+  return abi.map((item) => {
+    const newItem = { ...item };
+    if (newItem.type && typeof newItem.type === "string") {
+      newItem.type = newItem.type.toLowerCase();
+    }
+    if (newItem.stateMutability && typeof newItem.stateMutability === "string") {
+      newItem.stateMutability = newItem.stateMutability.toLowerCase();
+    }
+    return newItem;
+  });
+}
+
+/**
+ * Expand an ABI parameter to its canonical type string for function signature generation.
+ * Handles tuple types by recursively expanding components.
+ * e.g. { type: "tuple", components: [{type:"address"},{type:"uint256"}] } → "(address,uint256)"
+ * e.g. { type: "tuple[]", components: [...] }                             → "(address,uint256)[]"
+ */
+function expandType(param: any): string {
+  if (!param.type.startsWith("tuple")) {
+    return param.type;
+  }
+  // Extract array suffix: "tuple[]" → "[]", "tuple[3]" → "[3]", "tuple" → ""
+  const suffix = param.type.slice("tuple".length);
+  const inner = (param.components || []).map(expandType).join(",");
+  return `(${inner})${suffix}`;
 }
 
 /**
@@ -280,5 +311,193 @@ export async function multicall(
     });
   } catch (error: any) {
     return fallbackToSimulation(error.message);
+  }
+}
+
+/**
+ * Deploy a smart contract to the TRON network
+ */
+export async function deployContract(
+  privateKey: string,
+  params: {
+    abi: any[];
+    bytecode: string;
+    args?: any[];
+    name?: string;
+    feeLimit?: number; // In Sun, default 1,000,000,000 (1000 TRX)
+    originEnergyLimit?: number;
+    userPercentage?: number;
+  },
+  network = "mainnet",
+) {
+  const tronWeb = getWallet(privateKey, network);
+
+  try {
+    const deploymentOptions = {
+      abi: params.abi,
+      bytecode: params.bytecode.startsWith("0x") ? params.bytecode : "0x" + params.bytecode,
+      feeLimit: params.feeLimit || 1_000_000_000,
+      name: params.name || "Contract",
+      parameters: params.args || [],
+      originEnergyLimit: params.originEnergyLimit || 10_000_000,
+      userPercentage: params.userPercentage || 0,
+    };
+
+    // 1. Create transaction
+    const transaction = await tronWeb.transactionBuilder.createSmartContract(
+      deploymentOptions,
+      tronWeb.defaultAddress.hex as string,
+    );
+
+    // 2. Sign transaction
+    const signedTx = await tronWeb.trx.sign(transaction, privateKey);
+
+    // 3. Broadcast transaction
+    const result = await tronWeb.trx.sendRawTransaction(signedTx);
+
+    if (result && result.result) {
+      const txID = result.transaction.txID;
+
+      // Contract address is only available after tx is confirmed; get it from getTransactionInfo
+      const info = await waitForTransaction(txID, network);
+
+      // Check if transaction actually succeeded
+      // In TRON, success is often indicated by info.receipt.result === 'SUCCESS' or info.result === 'FAILED' (if it exists)
+      if (info.receipt && info.receipt.result && info.receipt.result !== "SUCCESS") {
+        const revertReason = info.resMessage
+          ? Buffer.from(info.resMessage, "hex").toString()
+          : "Unknown revert reason";
+        throw new Error(
+          `Contract deployment failed with status ${info.receipt.result}: ${revertReason}`,
+        );
+      }
+
+      const contractAddressHex = info?.contract_address as string | undefined;
+      let contractAddress: string | undefined;
+      if (contractAddressHex) {
+        const hex = contractAddressHex.replace(/^0x/, "");
+        // TRON contract_address from API is often 20 bytes (40 hex chars); base58 needs 41 prefix
+        const withPrefix = hex.length === 40 && !hex.startsWith("41") ? "41" + hex : hex;
+        const decoded = tronWeb.address.fromHex(withPrefix);
+        contractAddress = typeof decoded === "string" ? decoded : undefined;
+      }
+
+      if (!contractAddress) {
+        throw new Error("Contract deployed but failed to resolve contract address");
+      }
+
+      return {
+        txID,
+        contractAddress,
+        message: "Contract deployment successful",
+      };
+    } else {
+      throw new Error(`Broadcast failed: ${JSON.stringify(result)}`);
+    }
+  } catch (error: any) {
+    throw new Error(`Deploy contract failed: ${error.message}`);
+  }
+}
+
+/**
+ * Estimate energy consumption for a contract call
+ */
+export async function estimateEnergy(
+  params: {
+    address: string;
+    functionName: string;
+    args?: any[];
+    abi: any[];
+    ownerAddress?: string;
+  },
+  network = "mainnet",
+) {
+  const tronWeb = getTronWeb(network);
+
+  try {
+    const ownerAddress = params.ownerAddress || tronWeb.defaultAddress.base58;
+    if (!ownerAddress) {
+      throw new Error(
+        "Missing ownerAddress for energy estimation. Please provide an address or configure a wallet.",
+      );
+    }
+
+    // Use normalized ABI
+    const normalizedAbi = parseABI(params.abi);
+
+    // Find function definition in normalized ABI, handling overloaded functions (same name, different params)
+    const args = params.args || [];
+    const candidates = normalizedAbi.filter(
+      (item) => item.type === "function" && item.name === params.functionName,
+    );
+    if (candidates.length === 0) {
+      throw new Error(`Function ${params.functionName} not found in ABI`);
+    }
+
+    // Match by args count to resolve overloads
+    const matched = candidates.filter((item) => (item.inputs || []).length === args.length);
+    if (matched.length === 0) {
+      const overloads = candidates
+        .map(
+          (item) =>
+            `${params.functionName}(${(item.inputs || []).map((i: any) => i.type).join(", ")})`,
+        )
+        .join(" | ");
+      throw new Error(
+        `No overload of ${params.functionName} accepts ${args.length} argument(s). Available: ${overloads}`,
+      );
+    }
+    if (matched.length > 1) {
+      // Multiple overloads with same arg count (different types) — cannot auto-resolve
+      const overloads = matched
+        .map(
+          (item) =>
+            `${params.functionName}(${(item.inputs || []).map((i: any) => i.type).join(", ")})`,
+        )
+        .join(" | ");
+      throw new Error(
+        `Ambiguous overload for ${params.functionName} with ${args.length} argument(s). ` +
+          `Candidates: ${overloads}. Please specify the exact function signature.`,
+      );
+    }
+    const func = matched[0];
+
+    // Build function signature: name(type1,type2,...)
+    // expandType handles tuple/struct params (e.g. tuple → (address,uint256))
+    const inputTypes = (func.inputs || []).map((i: any) => expandType(i));
+    const signature = `${params.functionName}(${inputTypes.join(",")})`;
+
+    // Map args to Typed Parameters format: [{type: '...', value: '...'}]
+    const typedParams = args.map((val: any, index: number) => {
+      return {
+        type: inputTypes[index],
+        value: val,
+      };
+    });
+
+    // TronWeb's triggerConstantContract with signature and typed parameters
+    const result = await tronWeb.transactionBuilder.triggerConstantContract(
+      params.address,
+      signature,
+      {},
+      typedParams,
+      ownerAddress,
+    );
+
+    if (result && result.result && result.result.result) {
+      return {
+        energyUsed: result.energy_used || 0,
+        energyPenalty: result.energy_penalty || 0,
+        totalEnergy: (result.energy_used || 0) + (result.energy_penalty || 0),
+      };
+    } else {
+      const errorMsg =
+        result && result.result && result.result.message
+          ? Buffer.from(result.result.message, "hex").toString()
+          : JSON.stringify(result);
+      throw new Error(`Estimate energy failed: ${errorMsg}`);
+    }
+  } catch (error: any) {
+    throw new Error(`Estimate energy error: ${error.message}`);
   }
 }

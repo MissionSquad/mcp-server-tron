@@ -801,6 +801,156 @@ export function registerTRONTools(server: McpServer) {
     },
   );
 
+  server.registerTool(
+    "deploy_contract",
+    {
+      description: "Deploy a smart contract to the TRON network using ABI and Bytecode.",
+      inputSchema: {
+        abi: z.array(z.record(z.unknown())).describe("The contract ABI (array of objects)"),
+        bytecode: z.string().describe("The compiled contract bytecode (hex string)"),
+        args: z
+          .array(
+            z.union([
+              z.string(),
+              z.number(),
+              z.boolean(),
+              z.array(z.string()), // String array
+              z.array(z.number()), // Number array
+              z.record(z.unknown()), // Object (tuple)
+            ]),
+          )
+          .optional()
+          .describe("Constructor arguments"),
+        name: z.string().optional().describe("Contract name (optional)"),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+        feeLimit: z
+          .number()
+          .optional()
+          .describe("Fee limit in Sun (default: 1,000,000,000 = 1000 TRX)"),
+      },
+      annotations: {
+        title: "Deploy Smart Contract",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ abi, bytecode, args = [], name, network = "mainnet", feeLimit }) => {
+      try {
+        const privateKey = getConfiguredPrivateKey();
+        const senderAddress = getWalletAddressFromKey();
+
+        const result = await services.deployContract(
+          privateKey,
+          {
+            abi,
+            bytecode,
+            args,
+            name,
+            feeLimit,
+          },
+          network,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  from: senderAddress,
+                  constructorArgs: args.length > 0 ? args : undefined,
+                  ...result, // result contains contractAddress, txHash, message, etc.
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deploying contract: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "estimate_energy",
+    {
+      description: "Estimate energy consumption for a smart contract call (simulation).",
+      inputSchema: {
+        address: z.string().describe("Contract address"),
+        functionName: z.string().describe("Function name to call"),
+        args: z.array(z.any()).optional().describe("Function arguments"),
+        abi: z.array(z.any()).describe("Contract ABI (required for encoding)"),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+        ownerAddress: z
+          .string()
+          .optional()
+          .describe("Caller address for simulation. Defaults to configured wallet."),
+      },
+      annotations: {
+        title: "Estimate Energy",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ address, functionName, args = [], abi, network = "mainnet", ownerAddress }) => {
+      try {
+        const result = await services.estimateEnergy(
+          {
+            address,
+            functionName,
+            args,
+            abi,
+            ownerAddress,
+          },
+          network,
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  address,
+                  functionName,
+                  ...result,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error estimating energy: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ============================================================================
   // TRANSFER TOOLS (Write operations)
   // ============================================================================
@@ -911,6 +1061,188 @@ export function registerTRONTools(server: McpServer) {
             {
               type: "text",
               text: `Error transferring TRC20 tokens: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ============================================================================
+  // STAKING TOOLS (Stake 2.0)
+  // ============================================================================
+
+  server.registerTool(
+    "freeze_balance_v2",
+    {
+      description: "Freeze TRX to get resources (Stake 2.0).",
+      inputSchema: {
+        amount: z.string().describe("Amount to freeze in Sun (1 TRX = 1,000,000 Sun)"),
+        resource: z
+          .enum(["BANDWIDTH", "ENERGY"])
+          .optional()
+          .describe("Resource type to get. Defaults to BANDWIDTH."),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+      },
+      annotations: {
+        title: "Freeze Balance V2",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ amount, resource = "BANDWIDTH", network = "mainnet" }) => {
+      try {
+        const privateKey = getConfiguredPrivateKey();
+        const senderAddress = getWalletAddressFromKey();
+        const txHash = await services.freezeBalanceV2(
+          privateKey,
+          amount,
+          resource as "BANDWIDTH" | "ENERGY",
+          network,
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  from: senderAddress,
+                  amount: `${services.utils.fromSun(amount)} TRX`,
+                  resource,
+                  txHash,
+                  message: "Freeze transaction sent.",
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error freezing balance: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "unfreeze_balance_v2",
+    {
+      description: "Unfreeze TRX to release resources (Stake 2.0).",
+      inputSchema: {
+        amount: z.string().describe("Amount to unfreeze in Sun (1 TRX = 1,000,000 Sun)"),
+        resource: z
+          .enum(["BANDWIDTH", "ENERGY"])
+          .optional()
+          .describe("Resource type to release. Defaults to BANDWIDTH."),
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+      },
+      annotations: {
+        title: "Unfreeze Balance V2",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ amount, resource = "BANDWIDTH", network = "mainnet" }) => {
+      try {
+        const privateKey = getConfiguredPrivateKey();
+        const senderAddress = getWalletAddressFromKey();
+        const txHash = await services.unfreezeBalanceV2(
+          privateKey,
+          amount,
+          resource as "BANDWIDTH" | "ENERGY",
+          network,
+        );
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  from: senderAddress,
+                  amount: `${services.utils.fromSun(amount)} TRX`,
+                  resource,
+                  txHash,
+                  message: "Unfreeze transaction sent.",
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error unfreezing balance: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "withdraw_expire_unfreeze",
+    {
+      description:
+        "Withdraw expired unfrozen balance (Stake 2.0). Call this after the unfreezing period to return TRX to available balance.",
+      inputSchema: {
+        network: z.string().optional().describe("Network name. Defaults to mainnet."),
+      },
+      annotations: {
+        title: "Withdraw Expired Unfrozen Balance",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ network = "mainnet" }) => {
+      try {
+        const privateKey = getConfiguredPrivateKey();
+        const senderAddress = getWalletAddressFromKey();
+        const txHash = await services.withdrawExpireUnfreeze(privateKey, network);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  network,
+                  from: senderAddress,
+                  txHash,
+                  message: "Withdrawal transaction sent.",
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error withdrawing balance: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
           isError: true,
