@@ -38,6 +38,7 @@ Key capabilities:
 - **Address Management**: Convert between Hex (0x...) and Base58 (T...) formats.
 - **Wallet Integration**: Support for Private Key and Mnemonic (BIP-39) wallets.
 - **Multi-Network**: Seamless support for Mainnet, Nile, and Shasta.
+- **Dynamic Access Control**: Automatically hides write tools if no wallet is configured or if `--readonly` mode is active.
 
 ## Features
 
@@ -67,6 +68,26 @@ Key capabilities:
 - **Read Contract**: Call `view` and `pure` functions.
 - **Write Contract**: Execute state-changing functions.
 - **ABI Fetching**: Automatically fetches ABI from the blockchain for verified contracts.
+
+### Governance & Proposals
+
+- **Super Representatives**: List, vote, create/update witnesses, manage brokerage.
+- **Proposals**: List, view, create, approve, and delete governance proposals.
+- **Rewards**: Query and withdraw SR voting rewards.
+
+### Events & Data Queries
+
+- **Contract Events**: Query events by transaction, contract address, or block number.
+- **Account Data**: Transaction history, TRC20 transfers, internal transactions, token balances (via TronGrid).
+- **Contract Data**: Contract transaction history, internal transactions, token holder lists.
+- **Mempool**: View pending transactions and pool size.
+- **Node Info**: List connected nodes and query node details.
+
+### Staking & Resource Delegation (Stake 2.0)
+
+- **Staking**: Freeze/unfreeze TRX for Energy or Bandwidth.
+- **Delegation**: Delegate and undelegate resources to other accounts.
+- **Queries**: Available unfreeze count, withdrawable amounts, delegation details.
 
 ### Wallet & Security
 
@@ -142,23 +163,35 @@ The server runs on port **3001** by default in HTTP mode.
 # Start in stdio mode (for MCP clients like Claude Desktop/Cursor)
 npm start
 
+# Start in readonly mode (disables write tools)
+npm start -- --readonly
+
 # Start in HTTP mode (Server-Sent Events)
 npm run start:http
 ```
 
 ### Testing
 
-The project includes a comprehensive test suite with unit tests and integration tests (using the Nile network).
+The project includes a comprehensive test suite with unit tests and integration tests (using the Nile testnet).
 
 ```bash
 # Run all tests
 npm test
 
-# Run specific test suites
-npx vitest tests/core/tools.test.ts          # Unit tests for tools
-npx vitest tests/core/services/multicall.test.ts # Multicall integration
-npx vitest tests/core/services/services.test.ts # Services integration
+# Unit tests (mocked services, no network)
+npx vitest tests/core/tools.test.ts                    # All MCP tools registration & handlers
+npx vitest tests/core/services/contracts.test.ts       # Contract services
+npx vitest tests/core/services/accountResource.test.ts # Account resource services
+npx vitest tests/core/services/staking.test.ts         # Staking services
+
+# Integration tests (real Nile RPC; write tests require TRON_PRIVATE_KEY)
+npx vitest tests/core/tools_integration.test.ts        # Full tool flow on Nile
+npx vitest tests/core/services/multicall.test.ts       # Multicall integration
+npx vitest tests/core/services/services.test.ts        # Services integration
 ```
+
+- **Unit tests** use mocks and do not need network or wallet.
+- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when `TRON_PRIVATE_KEY` is set in the environment and are skipped otherwise.
 
 ### Client Configuration
 
@@ -214,6 +247,46 @@ For developers running from the cloned repository.
 }
 ```
 
+**Option C: Official Hosted Server (Remote)**
+Connect to the official hosted server at `https://mcp-server.bankofai.io`. No installation required, readonly mode.
+
+Claude Desktop / Cursor / Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "mcp-server-tron": {
+      "url": "https://mcp-server.bankofai.io/mcp"
+    }
+  }
+}
+```
+
+Google Antigravity:
+
+```json
+{
+  "mcpServers": {
+    "mcp-server-tron": {
+      "serverUrl": "https://mcp-server.bankofai.io/mcp"
+    }
+  }
+}
+```
+
+Opencode:
+
+```json
+{
+  "mcp": {
+    "mcp-server-tron": {
+      "type": "remote",
+      "url": "https://mcp-server.bankofai.io/mcp"
+    }
+  }
+}
+```
+
 **Important**: We recommend omitting the `env` section if you have already set these variables in your system environment. If your MCP client doesn't inherit system variables, use placeholders or ensure the config file is not shared or committed to version control.
 
 ## API Reference
@@ -233,6 +306,9 @@ For developers running from the cloned repository.
 | :----------------------- | :-------------------------------------- | :------------- |
 | `get_chain_info`         | Get current block and chain ID.         | `network`      |
 | `get_chain_parameters`   | Get current Energy and Bandwidth costs. | `network`      |
+| `get_energy_prices`      | Query historical energy unit price.     | `network`      |
+| `get_bandwidth_prices`   | Query historical bandwidth unit price.  | `network`      |
+| `get_burn_trx`           | Query total TRX burned from fees.       | `network`      |
 | `get_supported_networks` | List available networks.                | -              |
 
 #### Blocks & Transactions
@@ -243,6 +319,24 @@ For developers running from the cloned repository.
 | `get_latest_block`     | Get the latest block.                      | `network`                    |
 | `get_transaction`      | Get transaction details by hash.           | `txHash`, `network`          |
 | `get_transaction_info` | Get receipt/info including resource usage. | `txHash`, `network`          |
+| `get_block_by_num`     | Query block by block height.               | `num`, `network`             |
+| `get_block_by_id`      | Query block by block ID (hash).            | `value`, `network`           |
+| `get_block_by_latest_num` | Get latest N blocks (solidified).       | `num`, `network`             |
+| `get_block_by_limit_next`  | Get blocks in range [startNum, endNum). | `startNum`, `endNum`, `network` |
+| `get_now_block`        | Get the current latest block info.         | `network`                    |
+| `get_transaction_by_id` | Query transaction status/content by txID. | `value`, `network`           |
+| `get_transaction_info_by_id` | Query transaction receipt by txID.   | `value`, `network`           |
+| `get_transaction_info_by_block_num` | Get receipts for all txs in a block. | `num`, `network`     |
+| `get_approved_list`    | Query the list of accounts that signed a transaction. | `transaction`, `network` |
+| `get_block_balance`    | Get all balance change operations in a block. | `hash`, `number`, `network` |
+
+#### Broadcast & Transaction Building (Write)
+
+| Tool Name               | Description                                                        | Key Parameters                      |
+| :---------------------- | :----------------------------------------------------------------- | :---------------------------------- |
+| `create_transaction`    | Create an unsigned TRX transfer transaction.                       | `ownerAddress`, `toAddress`, `amount`, `network` |
+| `broadcast_transaction` | Broadcast a signed transaction JSON object to the TRON network.     | `transaction`, `network`           |
+| `broadcast_hex`         | Broadcast a signed protobuf-encoded transaction hex string.         | `transaction`, `network`           |
 
 #### Balances
 
@@ -260,11 +354,123 @@ For developers running from the cloned repository.
 
 #### Smart Contracts
 
-| Tool Name        | Description                                | Key Parameters                                                |
-| :--------------- | :----------------------------------------- | :------------------------------------------------------------ |
-| `read_contract`  | Call read-only (`view`/`pure`) functions.  | `contractAddress`, `functionName`, `args`, `network`          |
-| `multicall`      | Execute multiple read calls in one batch.  | `calls`, `network`                                            |
-| `write_contract` | Execute state-changing contract functions. | `contractAddress`, `functionName`, `args`, `value`, `network` |
+| Tool Name            | Description                                               | Key Parameters                                                |
+| :------------------- | :-------------------------------------------------------- | :------------------------------------------------------------ |
+| `read_contract`     | Call read-only (`view`/`pure`) functions.                  | `contractAddress`, `functionName`, `args`, `network`          |
+| `get_contract`      | Get raw contract metadata (ABI, bytecode) from chain.    | `contractAddress`, `network`                                 |
+| `get_contract_info` | Get ABI, function list and raw metadata.                  | `contractAddress`, `network`                                  |
+| `fetch_contract_abi`| Fetch ABI entry array for verified contracts.             | `contractAddress`, `network`                                  |
+| `multicall`         | Execute multiple read calls in one batch.                 | `calls`, `network`                                            |
+| `write_contract`    | Execute state-changing contract functions.                | `contractAddress`, `functionName`, `args`, `value`, `network` |
+| `deploy_contract`   | Deploy a smart contract with ABI and bytecode.           | `abi`, `bytecode`, `args`, `network`                          |
+| `estimate_energy`   | Estimate energy consumption for a contract call.         | `address`, `functionName`, `abi`, `network`                   |
+| `update_contract_setting` | Update consume_user_resource_percent (creator only). | `contractAddress`, `consumeUserResourcePercent`, `network`     |
+| `update_energy_limit`    | Update originEnergyLimit (creator only).             | `contractAddress`, `originEnergyLimit`, `network`              |
+| `clear_abi`         | Clear on-chain ABI metadata (creator only).               | `contractAddress`, `network`                                  |
+
+#### Account Management
+
+| Tool Name                       | Description                                                     | Key Parameters                                         |
+| :------------------------------ | :-------------------------------------------------------------- | :----------------------------------------------------- |
+| `get_account`                   | Get full account info (balance, resources, permissions, etc.).   | `address`, `network`                                   |
+| `get_account_balance`           | Get TRX balance at a specific block height.                     | `address`, `blockHash`, `blockNumber`, `network`       |
+| `generate_account`              | Generate a new TRON keypair offline.                            | -                                                      |
+| `validate_address`              | Validate a TRON address and detect format.                      | `address`                                              |
+| `get_account_net`               | Get bandwidth information for an account.                       | `address`, `network`                                   |
+| `get_account_resource`          | Get energy, bandwidth, and delegation details.                  | `address`, `network`                                   |
+| `get_delegated_resource`        | Query delegated resources between two accounts (Stake 2.0).     | `fromAddress`, `toAddress`, `network`                  |
+| `get_delegated_resource_index`  | Query delegation index (who delegated to/from this account).    | `address`, `network`                                   |
+| `create_account`                | Activate a new account on-chain (costs bandwidth).              | `address`, `network`                                   |
+| `update_account`                | Set account name (can only be set once).                        | `accountName`, `network`                               |
+| `account_permission_update`     | Update multi-signature permissions.                             | `ownerPermission`, `activePermissions`, `network`      |
+
+#### Staking (Stake 2.0)
+
+| Tool Name                       | Description                                                       | Key Parameters                  |
+| :------------------------------ | :---------------------------------------------------------------- | :----------------------------- |
+| `freeze_balance_v2`             | Freeze TRX to get resources (BANDWIDTH/ENERGY).                   | `amount`, `resource`, `network` |
+| `unfreeze_balance_v2`           | Unfreeze TRX to release resources.                               | `amount`, `resource`, `network` |
+| `withdraw_expire_unfreeze`      | Withdraw expired unfrozen balance back to available.             | `network`                      |
+| `cancel_all_unfreeze_v2`        | Re-stake pending unfreezes; withdraw expired ones.               | `network`                      |
+| `get_available_unfreeze_count`  | Get remaining unstake operation quota (max 32).                  | `address`, `network`           |
+| `get_can_withdraw_unfreeze_amount` | Get withdrawable TRX from unfreeze at a timestamp.            | `address`, `timestampMs`, `network` |
+
+#### Account resource (Stake 2.0 delegation)
+
+| Tool Name                                | Description                                                    | Key Parameters                                    |
+| :--------------------------------------- | :------------------------------------------------------------- | :----------------------------------------------- |
+| `delegate_resource`                      | Delegate BANDWIDTH/ENERGY to another address.                   | `receiverAddress`, `amount`, `resource`, `network` |
+| `undelegate_resource`                   | Revoke delegated resources.                                   | `receiverAddress`, `amount`, `resource`, `network` |
+| `get_can_delegated_max_size`             | Get max delegatable amount for an address.                     | `address`, `resource`, `network`                  |
+| `get_delegated_resource_v2`              | Get delegation details between two addresses.                  | `fromAddress`, `toAddress`, `network`             |
+| `get_delegated_resource_account_index_v2`| Get who delegated to/from an address.                          | `address`, `network`                             |
+
+#### Governance (Super Representatives)
+
+| Tool Name                  | Description                                                      | Key Parameters                  |
+| :------------------------- | :--------------------------------------------------------------- | :------------------------------ |
+| `list_witnesses`           | Get the full list of all Super Representatives on the network.   | `network`                       |
+| `get_paginated_witnesses`  | Get a paginated list of current active Super Representatives.    | `offset`, `limit`, `network`    |
+| `get_next_maintenance_time`| Get the next SR maintenance (vote tally) time.                   | `network`                       |
+| `get_reward`               | Get unclaimed SR voting reward for an address.                   | `address`, `network`            |
+| `get_brokerage`            | Get SR brokerage ratio (reward split with voters).               | `address`, `network`            |
+| `create_witness`           | Apply to become a Super Representative candidate.                | `url`, `network`                |
+| `update_witness`           | Update Super Representative URL.                                 | `url`, `network`                |
+| `vote_witness`             | Vote for Super Representatives with frozen TRX.                  | `votes`, `network`              |
+| `withdraw_balance`         | Withdraw accumulated SR block rewards.                           | `network`                       |
+| `update_brokerage`         | Update SR brokerage ratio.                                       | `brokerage`, `network`          |
+
+#### Proposals
+
+| Tool Name          | Description                                 | Key Parameters                         |
+| :----------------- | :------------------------------------------ | :------------------------------------- |
+| `list_proposals`   | List all network governance proposals.      | `network`                              |
+| `get_proposal`     | Get details of a specific proposal by ID.   | `proposalId`, `network`               |
+| `create_proposal`  | Create a new governance proposal (SR only). | `parameters`, `network`               |
+| `approve_proposal` | Approve or revoke a proposal (SR only).     | `proposalId`, `hasApproval`, `network` |
+| `delete_proposal`  | Delete a proposal (creator only).           | `proposalId`, `network`               |
+
+#### Events
+
+| Tool Name                       | Description                                           | Key Parameters                           |
+| :------------------------------ | :---------------------------------------------------- | :--------------------------------------- |
+| `get_events_by_transaction_id`  | Get all events emitted by a specific transaction.     | `transactionId`, `onlyConfirmed`, `network` |
+| `get_events_by_contract_address`| Get events emitted by a specific contract.            | `contractAddress`, `eventName`, `network` |
+| `get_events_by_block_number`    | Get all events emitted in a specific block.           | `blockNumber`, `network`                 |
+| `get_events_of_latest_block`    | Get all events from the latest block.                 | `network`                                |
+
+#### Account Data (TronGrid)
+
+| Tool Name                          | Description                                            | Key Parameters                         |
+| :--------------------------------- | :----------------------------------------------------- | :------------------------------------- |
+| `get_account_info`                 | Get account summary from TronGrid.                     | `address`, `network`                   |
+| `get_account_transactions`         | Get transaction history for an account.                | `address`, `limit`, `network`          |
+| `get_account_trc20_transactions`   | Get TRC20 transfer history for an account.             | `address`, `limit`, `network`          |
+| `get_account_internal_transactions`| Get internal transaction history for an account.       | `address`, `limit`, `network`          |
+| `get_account_trc20_balances`       | Get all TRC20 token balances for an account.           | `address`, `network`                   |
+
+#### Contract Data (TronGrid)
+
+| Tool Name                          | Description                                           | Key Parameters                         |
+| :--------------------------------- | :---------------------------------------------------- | :------------------------------------- |
+| `get_contract_transactions`        | Get transaction history for a contract.               | `contractAddress`, `limit`, `network`  |
+| `get_contract_internal_transactions`| Get internal transactions for a contract.            | `contractAddress`, `limit`, `network`  |
+| `get_trc20_token_holders`          | Get holder list for a TRC20 token.                    | `contractAddress`, `limit`, `network`  |
+
+#### Mempool
+
+| Tool Name                       | Description                                              | Key Parameters        |
+| :------------------------------ | :------------------------------------------------------- | :-------------------- |
+| `get_pending_transactions`      | Get transaction IDs in the pending pool (mempool).       | `network`             |
+| `get_transaction_from_pending`  | Get a specific transaction from the pending pool.        | `txId`, `network`     |
+| `get_pending_size`              | Get the current size of the pending transaction pool.    | `network`             |
+
+#### Node
+
+| Tool Name      | Description                                           | Key Parameters |
+| :------------- | :---------------------------------------------------- | :------------- |
+| `list_nodes`   | List all connected node addresses on the network.     | `network`      |
+| `get_node_info`| Get detailed info about the connected full node.      | `network`      |
 
 #### Signing & Security
 
@@ -293,7 +499,7 @@ mcp-server-tron/
 ├── src/
 │   ├── core/
 │   │   ├── chains.ts           # Network definitions
-│   │   ├── tools.ts            # MCP Tool definitions
+│   │   ├── tools/              # MCP Tool definitions (split by category)
 │   │   ├── prompts.ts          # MCP Prompt definitions
 │   │   └── services/           # Business logic (TronWeb integration)
 │   │       ├── wallet.ts       # Wallet management

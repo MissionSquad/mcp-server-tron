@@ -42,10 +42,12 @@ setInterval(
 
 // Initialize the MCP server
 let server: McpServer | null = null;
-startServer()
+const isReadOnly = process.argv.includes("--readonly") || process.argv.includes("-r");
+
+startServer({ readOnly: isReadOnly })
   .then((s) => {
     server = s;
-    console.error("MCP Server initialized successfully");
+    console.error(`MCP Server initialized successfully${isReadOnly ? " in readonly mode" : ""}`);
   })
   .catch((error) => {
     console.error("Failed to initialize server:", error);
@@ -171,7 +173,7 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     name: "mcp-server-tron",
-    version: "1.1.1",
+    version: "1.1.3",
     protocol: "MCP 2025-06-18",
     transport: "Streamable HTTP",
     endpoints: {
