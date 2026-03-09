@@ -6,9 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Agent-wallet integration**: Encrypted key storage via `@bankofai/agent-wallet` SDK. Private keys never exposed in environment variables.
+- **Agent-wallet integration**: Encrypted key storage via `@bankofai/agent-wallet` SDK (2.0.0-beta.2). Private keys never exposed in environment variables.
 - Dual-mode wallet support: agent-wallet mode (recommended) and legacy mode (`TRON_PRIVATE_KEY` / `TRON_MNEMONIC`).
-- Active wallet state management: `selectWallet` runtime switching, `getActiveWalletId` env var fallback, and auto-initialization on server startup.
+- Active wallet management via agent-wallet SDK built-in methods (`provider.getActive`, `setActive`, `getActiveId`). No separate `AGENT_WALLET_ID` env var needed.
+- `AGENT_WALLET_DIR` defaults to `~/.agent-wallet` (same as agent-wallet CLI).
+- `z.coerce` input type coercion for amount/value fields — tolerant of both string and number inputs from MCP clients.
+
+### Changed
+
+- Unified MCP protocol version constant (`2025-11-25`) shared between stdio and HTTP transports.
 
 ## [1.1.3] - 2026-02-28
 

@@ -111,7 +111,7 @@ Key capabilities:
 
 ```bash
 # Clone the repository
-git clone https://github.com/bankofai/mcp-server-tron.git
+git clone https://github.com/BofAI/mcp-server-tron.git
 cd mcp-server-tron
 
 # Install dependencies
@@ -182,7 +182,7 @@ npm start
 # Start in readonly mode (disables write tools)
 npm start -- --readonly
 
-# Start in HTTP mode (Server-Sent Events)
+# Start in HTTP mode (Streamable HTTP)
 npm run start:http
 ```
 
@@ -200,14 +200,14 @@ npx vitest tests/core/services/contracts.test.ts       # Contract services
 npx vitest tests/core/services/accountResource.test.ts # Account resource services
 npx vitest tests/core/services/staking.test.ts         # Staking services
 
-# Integration tests (real Nile RPC; write tests require TRON_PRIVATE_KEY)
+# Integration tests (real Nile RPC; write tests require AGENT_WALLET_PASSWORD or TRON_PRIVATE_KEY)
 npx vitest tests/core/tools_integration.test.ts        # Full tool flow on Nile
 npx vitest tests/core/services/multicall.test.ts       # Multicall integration
 npx vitest tests/core/services/services.test.ts        # Services integration
 ```
 
 - **Unit tests** use mocks and do not need network or wallet.
-- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when a wallet is configured (agent-wallet or `TRON_PRIVATE_KEY`) and are skipped otherwise.
+- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when a wallet is configured (`AGENT_WALLET_PASSWORD` or `TRON_PRIVATE_KEY`) and are skipped otherwise.
 
 ### Client Configuration
 
@@ -237,7 +237,7 @@ Runs the latest version directly from npm.
       "command": "npx",
       "args": ["-y", "@bankofai/mcp-server-tron"],
       "env": {
-        "TRON_PRIVATE_KEY": "YOUR_KEY_HERE (Or set in system env)",
+        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD (Or set in system env)",
         "TRONGRID_API_KEY": "YOUR_KEY_HERE (Or set in system env)"
       }
     }
@@ -255,7 +255,7 @@ For developers running from the cloned repository.
       "command": "npx",
       "args": ["tsx", "/ABSOLUTE/PATH/TO/mcp-server-tron/src/index.ts"],
       "env": {
-        "TRON_PRIVATE_KEY": "YOUR_KEY_HERE (Or set in system env)",
+        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD (Or set in system env)",
         "TRONGRID_API_KEY": "YOUR_KEY_HERE (Or set in system env)"
       }
     }
@@ -264,7 +264,7 @@ For developers running from the cloned repository.
 ```
 
 **Option C: Official Hosted Server (Remote)**
-Connect to the official hosted server at `https://mcp-server.bankofai.io`. No installation required, readonly mode.
+Connect to the official hosted server at `https://tron-mcp-server.bankofai.io`. No installation required, readonly mode.
 
 Claude Desktop / Cursor / Claude Code:
 
@@ -272,7 +272,7 @@ Claude Desktop / Cursor / Claude Code:
 {
   "mcpServers": {
     "mcp-server-tron": {
-      "url": "https://mcp-server.bankofai.io/mcp"
+      "url": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -284,7 +284,7 @@ Google Antigravity:
 {
   "mcpServers": {
     "mcp-server-tron": {
-      "serverUrl": "https://mcp-server.bankofai.io/mcp"
+      "serverUrl": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -297,7 +297,7 @@ Opencode:
   "mcp": {
     "mcp-server-tron": {
       "type": "remote",
-      "url": "https://mcp-server.bankofai.io/mcp"
+      "url": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -314,6 +314,8 @@ Opencode:
 | Tool Name            | Description                                         | Key Parameters |
 | :------------------- | :-------------------------------------------------- | :------------- |
 | `get_wallet_address` | Get the configured wallet's address (Base58 & Hex). | -              |
+| `list_wallets`       | List all available wallets with IDs and addresses.   | -              |
+| `select_wallet`      | Switch the active wallet at runtime (agent-wallet mode). | `walletId` |
 | `convert_address`    | Convert between Hex and Base58 formats.             | `address`      |
 
 #### Network & Resources
@@ -497,7 +499,9 @@ Opencode:
 ### Prompts
 
 - `prepare_transfer`: Interactive guide to prepare TRX/TRC20 transfers.
+- `interact_with_contract`: Step-by-step guide to interact with a smart contract.
 - `diagnose_transaction`: Analyze a transaction hash for status and errors.
+- `explain_tron_concept`: Explain a TRON blockchain concept with examples.
 - `analyze_wallet`: Comprehensive report of wallet assets.
 - `check_network_status`: Report on network health and resource costs.
 
