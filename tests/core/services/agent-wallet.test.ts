@@ -466,7 +466,7 @@ describe("agent-wallet service", () => {
       await expect(generateAndStoreAccount()).rejects.toThrow("requires agent-wallet mode");
     });
 
-    it("generates and stores an encrypted key, then auto-switches to it", async () => {
+    it("generates and stores an encrypted key without switching active wallet", async () => {
       setAgentWalletEnv();
       mockGenerateKey.mockReturnValue(Buffer.alloc(32, 1));
 
@@ -475,7 +475,7 @@ describe("agent-wallet service", () => {
       expect(result.walletId).toBe("my-wallet");
       expect(result.address).toBe("TNewGeneratedAddress");
       expect(mockGenerateKey).toHaveBeenCalledWith("my-wallet");
-      expect(mockSetActive).toHaveBeenCalledWith("my-wallet");
+      expect(mockSetActive).not.toHaveBeenCalled();
     });
 
     it("auto-generates wallet name when not provided", async () => {
@@ -486,7 +486,7 @@ describe("agent-wallet service", () => {
       const result = await generateAndStoreAccount();
       expect(result.walletId).toMatch(/^tron-\d+$/);
       expect(result.address).toBe("TNewGeneratedAddress");
-      expect(mockSetActive).toHaveBeenCalledWith(result.walletId);
+      expect(mockSetActive).not.toHaveBeenCalled();
     });
   });
 
@@ -495,7 +495,7 @@ describe("agent-wallet service", () => {
   // =========================================================================
 
   describe("cross-operation state persistence", () => {
-    it("generateAndStoreAccount auto-switches to new wallet", async () => {
+    it("generateAndStoreAccount preserves active wallet", async () => {
       setAgentWalletEnv();
       mockGetWallet.mockResolvedValue(createMockWallet("TSwitchedAddr"));
       mockGetActiveId.mockReturnValue("wallet-2");
@@ -503,14 +503,14 @@ describe("agent-wallet service", () => {
       await mod.selectWallet("wallet-2");
       mockSetActive.mockClear();
 
-      // generateAndStoreAccount should auto-switch to the new wallet
+      // generateAndStoreAccount should NOT change active wallet
       mockGenerateKey.mockReturnValue(Buffer.alloc(32, 1));
       await mod.generateAndStoreAccount("new-wallet");
-      expect(mockSetActive).toHaveBeenCalledWith("new-wallet");
+      expect(mockSetActive).not.toHaveBeenCalled();
 
-      // After provider refresh, active wallet is the new one
-      mockGetActiveId.mockReturnValue("new-wallet");
-      expect(mod.getActiveWalletId()).toBe("new-wallet");
+      // Active wallet remains wallet-2
+      mockGetActiveId.mockReturnValue("wallet-2");
+      expect(mod.getActiveWalletId()).toBe("wallet-2");
     });
 
     it("selectWallet persists choice to provider config", async () => {

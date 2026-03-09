@@ -9,7 +9,7 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
       description: "Transfer TRX to an address.",
       inputSchema: {
         to: z.string().describe("Recipient address"),
-        amount: z.string().describe("Amount to send in TRX (e.g., '10.5')"),
+        amount: z.coerce.string().describe("Amount to send in TRX (e.g., '10.5')"),
         network: z.string().optional().describe("Network name. Defaults to mainnet."),
       },
       annotations: {
@@ -64,7 +64,7 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
       inputSchema: {
         tokenAddress: z.string().describe("The TRC20 token contract address"),
         to: z.string().describe("Recipient address"),
-        amount: z.string().describe("Amount to send (raw amount with decimals)"),
+        amount: z.coerce.string().describe("Amount to send (raw amount with decimals)"),
         network: z.string().optional().describe("Network name. Defaults to mainnet."),
       },
       annotations: {

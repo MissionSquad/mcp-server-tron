@@ -9,7 +9,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     {
       description: "Freeze TRX to get resources (Stake 2.0).",
       inputSchema: {
-        amount: z.string().describe("Amount to freeze in Sun (1 TRX = 1,000,000 Sun)"),
+        amount: z.coerce.string().describe("Amount to freeze in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
           .optional()
@@ -70,7 +70,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     {
       description: "Unfreeze TRX to release resources (Stake 2.0).",
       inputSchema: {
-        amount: z.string().describe("Amount to unfreeze in Sun (1 TRX = 1,000,000 Sun)"),
+        amount: z.coerce.string().describe("Amount to unfreeze in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
           .optional()

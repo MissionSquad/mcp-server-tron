@@ -340,7 +340,7 @@ export function registerContractTools(registerTool: RegisterToolFn) {
           .describe(
             "Optional contract ABI array. If not provided, will fetch from chain. Use for contracts with incomplete on-chain ABI.",
           ),
-        value: z.string().optional().describe("TRX value to send (in Sun)"),
+        value: z.coerce.string().optional().describe("TRX value to send (in Sun)"),
         network: z.string().optional().describe("Network name. Defaults to mainnet."),
       },
       annotations: {

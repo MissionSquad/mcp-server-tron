@@ -83,7 +83,7 @@ export function registerBroadcastTools(registerTool: RegisterToolFn) {
         ownerAddress: z.string().describe("Sender address (Base58)"),
         toAddress: z.string().describe("Recipient address (Base58)"),
         amount: z
-          .number()
+          .coerce.number()
           .int()
           .positive()
           .describe("Transfer amount in SUN (1 TRX = 1,000,000 SUN)"),

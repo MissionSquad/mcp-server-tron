@@ -308,12 +308,10 @@ export async function generateAndStoreAccount(
   };
   saveConfig(secretsDir, config);
 
-  // Refresh provider to pick up new wallet, then auto-switch to it
+  // Refresh provider to pick up new wallet (do not switch active wallet)
   provider = null;
   activeWallet = null;
   activeAddress = null;
-  const p = getProvider();
-  p.setActive(walletId);
 
   return { walletId, address };
 }
