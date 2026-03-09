@@ -143,7 +143,11 @@ Choose **one** of the following modes. If none is configured, the server runs in
 
 Private keys are encrypted at rest (Keystore V3: scrypt + AES-128-CTR) and never exposed in environment variables.
 
-> First, follow the [agent-wallet README](https://github.com/BofAI/agent-wallet#readme) to install and set up your wallet (`agent-wallet init`, `agent-wallet add`). Then configure the environment variables below:
+> **Prerequisites**: Install and configure [agent-wallet](https://github.com/BofAI/agent-wallet) first:
+> ```bash
+> agent-wallet init
+> agent-wallet add
+> ```
 
 ```bash
 export AGENT_WALLET_PASSWORD="<YOUR_MASTER_PASSWORD>"
