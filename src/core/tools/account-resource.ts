@@ -16,8 +16,8 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
         receiverAddress: z
           .string()
           .describe("The address that will receive the delegated resources"),
-        amount: z
-          .coerce.number()
+        amount: z.coerce
+          .number()
           .describe("Amount of resources to delegate in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
@@ -106,7 +106,9 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
         receiverAddress: z
           .string()
           .describe("The address from which delegated resources will be revoked"),
-        amount: z.coerce.number().describe("Amount of resources to revoke in Sun (1 TRX = 1,000,000 Sun)"),
+        amount: z.coerce
+          .number()
+          .describe("Amount of resources to revoke in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
           .describe("Resource type to revoke (BANDWIDTH or ENERGY)"),

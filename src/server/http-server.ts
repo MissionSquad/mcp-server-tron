@@ -105,7 +105,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error handling request: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -133,7 +133,7 @@ app.get("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error handling SSE request: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -154,7 +154,7 @@ app.delete("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error closing session: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -165,7 +165,6 @@ app.get("/health", (_req: Request, res: Response) => {
     status: "ok",
     server: server ? "initialized" : "initializing",
     activeSessions: transports.size,
-    sessionIds: Array.from(transports.keys()),
   });
 });
 

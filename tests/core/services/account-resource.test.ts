@@ -5,7 +5,7 @@ import {
   getCanDelegatedMaxSize,
   getDelegatedResourceV2,
   getDelegatedResourceAccountIndexV2,
-} from "../../../src/core/services/accountResource.js";
+} from "../../../src/core/services/account-resource.js";
 
 describe("Account Resource Services Integration (Nile)", () => {
   const hasWallet =
