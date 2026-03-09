@@ -9,10 +9,7 @@ import {
  * Check if any wallet is configured (agent-wallet or legacy env vars).
  */
 export const isWalletConfigured = (): boolean => {
-  return (
-    isAgentWalletConfigured() ||
-    !!(process.env.TRON_PRIVATE_KEY || process.env.TRON_MNEMONIC)
-  );
+  return isAgentWalletConfigured() || !!(process.env.TRON_PRIVATE_KEY || process.env.TRON_MNEMONIC);
 };
 
 /**

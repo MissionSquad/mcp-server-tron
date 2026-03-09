@@ -146,9 +146,8 @@ Private keys are encrypted at rest (Keystore V3: scrypt + AES-128-CTR) and never
 > First, follow the [agent-wallet README](https://github.com/BofAI/agent-wallet#readme) to install and set up your wallet (`agent-wallet init`, `agent-wallet add`). Then configure the environment variables below:
 
 ```bash
-export AGENT_WALLET_DIR="<YOUR_WALLET_DIR>"
 export AGENT_WALLET_PASSWORD="<YOUR_MASTER_PASSWORD>"
-export AGENT_WALLET_ID="<WALLET_ID>"  # Optional, auto-selects first wallet if omitted
+export AGENT_WALLET_DIR="<YOUR_WALLET_DIR>"  # Optional, default: ~/.agent-wallet
 ```
 
 **Option 2: Private Key (Legacy)**

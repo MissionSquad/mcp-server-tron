@@ -158,9 +158,9 @@ export function registerContractTools(registerTool: RegisterToolFn) {
           content: [
             {
               type: "text",
-              text: `Error getting contract info: ${error instanceof Error ? error.message : String(
-                error,
-              )}`,
+              text: `Error getting contract info: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
             },
           ],
           isError: true,

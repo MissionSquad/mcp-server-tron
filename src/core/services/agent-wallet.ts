@@ -10,37 +10,42 @@
 
 import {
   WalletFactory,
-  type WalletProvider,
+  type LocalWalletProvider,
   type BaseWallet,
   type Eip712Capable,
-  type WalletInfo,
   SecureKVStore,
   TronWallet,
   loadConfig,
   saveConfig,
 } from "@bankofai/agent-wallet";
 import { TronWeb } from "tronweb";
+import { homedir } from "os";
+import { join } from "path";
 import { getTronWeb, getWallet } from "./clients.js";
+
+// Default agent-wallet directory (same as agent-wallet CLI)
+const DEFAULT_WALLET_DIR = join(homedir(), ".agent-wallet");
 
 // ---------------------------------------------------------------------------
 // Module-level singleton state
 // ---------------------------------------------------------------------------
 
-let provider: WalletProvider | null = null;
+let provider: LocalWalletProvider | null = null;
 let activeWallet: BaseWallet | null = null;
 let activeAddress: string | null = null;
-let activeWalletId: string | null = null;
 
 // ---------------------------------------------------------------------------
 // Mode detection
 // ---------------------------------------------------------------------------
 
-/** True when agent-wallet env vars are configured. */
+/** Resolve the agent-wallet secrets directory. */
+function getWalletDir(): string {
+  return process.env.AGENT_WALLET_DIR || DEFAULT_WALLET_DIR;
+}
+
+/** True when agent-wallet is configured (password is required). */
 export function isAgentWalletConfigured(): boolean {
-  return !!(
-    process.env.AGENT_WALLET_DIR &&
-    process.env.AGENT_WALLET_PASSWORD
-  );
+  return !!process.env.AGENT_WALLET_PASSWORD;
 }
 
 /** True when legacy TRON_PRIVATE_KEY / TRON_MNEMONIC env vars are set. */
@@ -53,13 +58,13 @@ export function isLegacyMode(): boolean {
 // Provider initialization (lazy)
 // ---------------------------------------------------------------------------
 
-function getProvider(): WalletProvider {
+function getProvider(): LocalWalletProvider {
   if (provider) return provider;
 
-  const secretsDir = process.env.AGENT_WALLET_DIR!;
+  const secretsDir = getWalletDir();
   const password = process.env.AGENT_WALLET_PASSWORD!;
 
-  provider = WalletFactory({ secretsDir, password });
+  provider = WalletFactory({ secretsDir, password }) as LocalWalletProvider;
   return provider;
 }
 
@@ -69,28 +74,13 @@ function getProvider(): WalletProvider {
 
 /**
  * Get the currently active agent-wallet. Lazily initializes provider and
- * selects the wallet specified by AGENT_WALLET_ID (or first tron wallet).
+ * uses the active wallet from agent-wallet config (or first available wallet).
  */
 export async function getActiveWallet(): Promise<BaseWallet> {
   if (activeWallet) return activeWallet;
 
   const p = getProvider();
-
-  let walletId = activeWalletId || process.env.AGENT_WALLET_ID;
-  if (!walletId) {
-    // Auto-select first available wallet
-    const wallets = await p.listWallets();
-    if (wallets.length === 0) {
-      throw new Error(
-        "No wallets found in agent-wallet. Use generate_account to create one, " +
-          "or set AGENT_WALLET_ID to a specific wallet.",
-      );
-    }
-    walletId = wallets[0].id;
-  }
-
-  activeWallet = await p.getWallet(walletId);
-  activeWalletId = walletId;
+  activeWallet = await p.getActive();
   activeAddress = await activeWallet.getAddress();
   return activeWallet;
 }
@@ -114,24 +104,23 @@ export async function getOwnerAddress(): Promise<string> {
 
 /**
  * Switch the active wallet at runtime (agent-wallet mode only).
+ * Persists the choice to agent-wallet config.
  */
-export async function selectWallet(
-  walletId: string,
-): Promise<{ id: string; address: string }> {
+export async function selectWallet(walletId: string): Promise<{ id: string; address: string }> {
   if (isLegacyMode()) {
     throw new Error(
       "select_wallet is not available in legacy mode. " +
-        "Configure AGENT_WALLET_DIR and AGENT_WALLET_PASSWORD to use agent-wallet.",
+        "Configure AGENT_WALLET_PASSWORD to use agent-wallet.",
     );
   }
 
   const p = getProvider();
+  p.setActive(walletId);
   const wallet = await p.getWallet(walletId);
   const address = await wallet.getAddress();
 
   // Update cached state
   activeWallet = wallet;
-  activeWalletId = walletId;
   activeAddress = address;
 
   return { id: walletId, address };
@@ -164,31 +153,13 @@ export async function listAgentWallets(): Promise<
 
 /**
  * Get the currently active wallet ID.
+ * Reads from agent-wallet config's `active_wallet` field.
  */
 export function getActiveWalletId(): string | null {
   if (isLegacyMode()) return "default";
-  if (!activeWalletId && process.env.AGENT_WALLET_ID) {
-    return process.env.AGENT_WALLET_ID;
-  }
-  return activeWalletId;
-}
-
-/**
- * Initialize the active wallet on startup. Ensures activeWalletId is set
- * from AGENT_WALLET_ID env var, or auto-selects the first available wallet.
- */
-export async function initActiveWallet(): Promise<void> {
-  if (isLegacyMode() || activeWalletId) return;
-  if (process.env.AGENT_WALLET_ID) {
-    activeWalletId = process.env.AGENT_WALLET_ID;
-    return;
-  }
-  if (!isAgentWalletConfigured()) return;
+  if (!isAgentWalletConfigured()) return null;
   const p = getProvider();
-  const wallets = await p.listWallets();
-  if (wallets.length > 0) {
-    activeWalletId = wallets[0].id;
-  }
+  return p.getActiveId();
 }
 
 // ---------------------------------------------------------------------------
@@ -199,9 +170,7 @@ export async function initActiveWallet(): Promise<void> {
  * Sign an unsigned transaction. Handles both agent-wallet and legacy modes.
  * Returns the signed transaction object (with `signature` array appended).
  */
-export async function signTransaction(
-  unsignedTx: Record<string, unknown>,
-): Promise<any> {
+export async function signTransaction(unsignedTx: Record<string, unknown>): Promise<any> {
   if (isLegacyMode()) {
     const privateKey = getLegacyPrivateKey();
     const network = "mainnet"; // legacy sign uses any network for signing
@@ -316,11 +285,11 @@ export async function generateAndStoreAccount(
   if (isLegacyMode()) {
     throw new Error(
       "generateAndStoreAccount requires agent-wallet mode. " +
-        "Set AGENT_WALLET_DIR and AGENT_WALLET_PASSWORD.",
+        "Set AGENT_WALLET_PASSWORD to use agent-wallet.",
     );
   }
 
-  const secretsDir = process.env.AGENT_WALLET_DIR!;
+  const secretsDir = getWalletDir();
   const password = process.env.AGENT_WALLET_PASSWORD!;
 
   const walletId = walletName || `tron-${Date.now()}`;
@@ -339,18 +308,15 @@ export async function generateAndStoreAccount(
   };
   saveConfig(secretsDir, config);
 
-  // Refresh provider to pick up new wallet, but preserve the previously active wallet
-  const prevWalletId = activeWalletId;
-  const prevAddress = activeAddress;
+  // Refresh provider to pick up new wallet, then auto-switch to it
   provider = null;
   activeWallet = null;
-  activeAddress = prevAddress;
-  activeWalletId = prevWalletId;
+  activeAddress = null;
+  const p = getProvider();
+  p.setActive(walletId);
 
   return { walletId, address };
 }
-
-
 
 // ---------------------------------------------------------------------------
 // Legacy helpers (internal)
@@ -390,6 +356,6 @@ function getLegacyPrivateKey(): string {
 
   throw new Error(
     "Neither TRON_PRIVATE_KEY nor TRON_MNEMONIC environment variable is set. " +
-      "Configure one of them, or use agent-wallet mode with AGENT_WALLET_DIR + AGENT_WALLET_PASSWORD.",
+      "Configure one of them, or use agent-wallet mode with AGENT_WALLET_PASSWORD.",
   );
 }

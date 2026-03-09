@@ -2,14 +2,15 @@ import { describe, it, expect } from "vitest";
 import { transferTRX, transferTRC20, approveTRC20 } from "../../../src/core/services/transfer.js";
 
 describe("Transfer Services Integration (Nile)", () => {
-  const hasWallet = !!process.env.TRON_PRIVATE_KEY || !!process.env.TRON_MNEMONIC
-    || !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet =
+    !!process.env.TRON_PRIVATE_KEY ||
+    !!process.env.TRON_MNEMONIC ||
+    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
 
   it.runIf(hasWallet)(
     "transferTRX should attempt to send TRX and return tx hash or meaningful error",
     async () => {
-      const receiverAddress =
-        process.env.TRON_RECEIVER_ADDRESS || process.env.TRON_ADDRESS || null;
+      const receiverAddress = process.env.TRON_RECEIVER_ADDRESS || process.env.TRON_ADDRESS || null;
 
       if (!receiverAddress) {
         console.log(
@@ -34,8 +35,7 @@ describe("Transfer Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "transferTRC20 should attempt to send TRC20 and return result or meaningful error",
     async () => {
-      const receiverAddress =
-        process.env.TRON_RECEIVER_ADDRESS || process.env.TRON_ADDRESS || null;
+      const receiverAddress = process.env.TRON_RECEIVER_ADDRESS || process.env.TRON_ADDRESS || null;
       // USDT on Nile testnet
       const tokenAddress = process.env.TRC20_TOKEN_ADDRESS || "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj";
 
@@ -59,8 +59,7 @@ describe("Transfer Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "approveTRC20 should attempt to approve spending and return tx hash or error",
     async () => {
-      const spenderAddress =
-        process.env.TRON_SPENDER_ADDRESS || process.env.TRON_ADDRESS || null;
+      const spenderAddress = process.env.TRON_SPENDER_ADDRESS || process.env.TRON_ADDRESS || null;
       const tokenAddress = process.env.TRC20_TOKEN_ADDRESS || "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj";
 
       if (!spenderAddress) {

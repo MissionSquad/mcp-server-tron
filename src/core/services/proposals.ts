@@ -100,10 +100,7 @@ export async function approveProposal(
  * @param network Network name
  * @returns Transaction hash
  */
-export async function deleteProposal(
-  proposalId: number,
-  network = "mainnet",
-): Promise<string> {
+export async function deleteProposal(proposalId: number, network = "mainnet"): Promise<string> {
   const tronWeb = getTronWeb(network);
   const ownerAddress = await getOwnerAddress();
 

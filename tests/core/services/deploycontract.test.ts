@@ -19,8 +19,10 @@ const SIMPLE_STORAGE_BYTECODE =
 
 describe("Contract Services Integration (Nile)", () => {
   // Only run if wallet is configured (agent-wallet or legacy env vars)
-  const hasWallet = !!process.env.TRON_PRIVATE_KEY || !!process.env.TRON_MNEMONIC
-    || !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet =
+    !!process.env.TRON_PRIVATE_KEY ||
+    !!process.env.TRON_MNEMONIC ||
+    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
 
   it.runIf(hasWallet)(
     "should deploy a simple storage contract",

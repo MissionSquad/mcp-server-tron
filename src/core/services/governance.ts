@@ -186,10 +186,7 @@ export async function voteWitness(
     for (const v of votes) {
       voteMap[v.address] = v.voteCount;
     }
-    const transaction = await tronWeb.transactionBuilder.vote(
-      voteMap as any,
-      ownerAddress as any,
-    );
+    const transaction = await tronWeb.transactionBuilder.vote(voteMap as any, ownerAddress as any);
     return await buildSignBroadcast(transaction as any, network);
   } catch (error: any) {
     throw new Error(`Failed to vote for witness: ${error.message}`);
@@ -206,9 +203,7 @@ export async function withdrawBalance(network = "mainnet"): Promise<string> {
   const ownerAddress = await getOwnerAddress();
 
   try {
-    const transaction = await tronWeb.transactionBuilder.withdrawBlockRewards(
-      ownerAddress as any,
-    );
+    const transaction = await tronWeb.transactionBuilder.withdrawBlockRewards(ownerAddress as any);
     return await buildSignBroadcast(transaction as any, network);
   } catch (error: any) {
     throw new Error(`Failed to withdraw balance: ${error.message}`);
@@ -221,10 +216,7 @@ export async function withdrawBalance(network = "mainnet"): Promise<string> {
  * @param network Network name
  * @returns Transaction hash
  */
-export async function updateBrokerage(
-  brokerage: number,
-  network = "mainnet",
-): Promise<string> {
+export async function updateBrokerage(brokerage: number, network = "mainnet"): Promise<string> {
   const tronWeb = getTronWeb(network);
   const ownerAddress = await getOwnerAddress();
 

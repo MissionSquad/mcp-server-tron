@@ -19,13 +19,7 @@ export async function delegateResource(
   const ownerAddress = await getOwnerAddress();
 
   try {
-    const {
-      amount,
-      receiverAddress,
-      resource,
-      lock = false,
-      lockPeriod = 0,
-    } = params;
+    const { amount, receiverAddress, resource, lock = false, lockPeriod = 0 } = params;
 
     const tx = await tronWeb.transactionBuilder.delegateResource(
       amount,
@@ -175,10 +169,7 @@ export async function getDelegatedResourceV2(
  * Get delegated resource account index for an address under Stake 2.0.
  * Wraps walletsolidity.getdelegatedresourceaccountindexv2.
  */
-export async function getDelegatedResourceAccountIndexV2(
-  address: string,
-  network = "mainnet",
-) {
+export async function getDelegatedResourceAccountIndexV2(address: string, network = "mainnet") {
   const tronWeb = getTronWeb(network);
 
   try {

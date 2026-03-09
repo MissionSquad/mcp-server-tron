@@ -400,9 +400,7 @@ describe("TRON Tools Unit Tests", () => {
 
   describe("Wallet & Address Tools", () => {
     it("get_wallet_address should return configured address", async () => {
-      (services.getOwnerAddress as any).mockResolvedValue(
-        "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
-      );
+      (services.getOwnerAddress as any).mockResolvedValue("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
       const result = await registeredTools.get("get_wallet_address").handler({});
       const content = JSON.parse(result.content[0].text);
       expect(content.address).toBe("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
@@ -727,11 +725,7 @@ describe("TRON Tools Unit Tests", () => {
         network: "nile",
       });
 
-      expect(services.updateEnergyLimit).toHaveBeenCalledWith(
-        "Tcontract",
-        10000000,
-        "nile",
-      );
+      expect(services.updateEnergyLimit).toHaveBeenCalledWith("Tcontract", 10000000, "nile");
       const content = JSON.parse(result.content[0].text);
       expect(content.txHash).toBe("tx_energy");
       expect(content.originEnergyLimit).toBe(10000000);
@@ -940,11 +934,7 @@ describe("TRON Tools Unit Tests", () => {
         network: "nile",
       });
 
-      expect(services.getCanDelegatedMaxSize).toHaveBeenCalledWith(
-        "Taddress",
-        "ENERGY",
-        "nile",
-      );
+      expect(services.getCanDelegatedMaxSize).toHaveBeenCalledWith("Taddress", "ENERGY", "nile");
 
       const content = JSON.parse(result.content[0].text);
       expect(content.address).toBe("Taddress");

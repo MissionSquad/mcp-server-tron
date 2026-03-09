@@ -121,7 +121,10 @@ export async function getCanWithdrawUnfreezeAmount(
     );
 
     const rawAmount = (res as any)?.amount;
-    if (rawAmount === undefined || (typeof rawAmount !== "number" && typeof rawAmount !== "string")) {
+    if (
+      rawAmount === undefined ||
+      (typeof rawAmount !== "number" && typeof rawAmount !== "string")
+    ) {
       throw new Error(
         `Unexpected response from getcanwithdrawunfreezeamount: ${JSON.stringify(res)}`,
       );

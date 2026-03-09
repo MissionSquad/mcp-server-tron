@@ -8,8 +8,10 @@ import {
 } from "../../../src/core/services/proposals.js";
 
 describe("Proposals Services Integration (Nile)", () => {
-  const hasWallet = !!process.env.TRON_PRIVATE_KEY || !!process.env.TRON_MNEMONIC
-    || !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet =
+    !!process.env.TRON_PRIVATE_KEY ||
+    !!process.env.TRON_MNEMONIC ||
+    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
 
   // ============================================================================
   // READ-ONLY TESTS

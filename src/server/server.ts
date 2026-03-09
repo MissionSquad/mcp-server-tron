@@ -6,7 +6,10 @@ import { registerTRONPrompts } from "../core/prompts.js";
 import { getSupportedNetworks } from "../core/chains.js";
 
 const require = createRequire(import.meta.url);
-const { version } = require("../../package.json");
+export const { version } = require("../../package.json");
+
+/** MCP protocol version supported by this server (from SDK LATEST_PROTOCOL_VERSION). */
+export const MCP_PROTOCOL_VERSION = "2025-11-25";
 
 // Create and start the MCP server
 async function startServer(options: { readOnly?: boolean } = {}) {
@@ -39,16 +42,12 @@ async function startServer(options: { readOnly?: boolean } = {}) {
     registerTRONTools(server, options);
     registerTRONPrompts(server, options);
 
-    // Initialize active wallet if agent-wallet is configured
-    const { initActiveWallet } = await import("../core/services/agent-wallet.js");
-    await initActiveWallet();
-
     // Log server information
     console.error(`mcp-server-tron v${version} initialized`);
     if (options.readOnly) {
       console.error("Mode: Read-only (Write tools disabled)");
     }
-    console.error(`Protocol: MCP 2025-06-18`);
+    console.error(`Protocol: MCP ${MCP_PROTOCOL_VERSION}`);
     console.error(`Supported networks: ${getSupportedNetworks().length} networks`);
     console.error("Server is ready to handle requests");
 

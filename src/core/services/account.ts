@@ -175,10 +175,7 @@ export async function createAccount(newAddress: string, network = "mainnet") {
   const ownerAddress = await getOwnerAddress();
 
   try {
-    const transaction = await tronWeb.transactionBuilder.createAccount(
-      newAddress,
-      ownerAddress,
-    );
+    const transaction = await tronWeb.transactionBuilder.createAccount(newAddress, ownerAddress);
     return await buildSignBroadcast(transaction as any, network);
   } catch (error: any) {
     throw new Error(`Failed to create account: ${error.message}`);
@@ -196,10 +193,7 @@ export async function updateAccount(accountName: string, network = "mainnet") {
   const ownerAddress = await getOwnerAddress();
 
   try {
-    const transaction = await tronWeb.transactionBuilder.updateAccount(
-      accountName,
-      ownerAddress,
-    );
+    const transaction = await tronWeb.transactionBuilder.updateAccount(accountName, ownerAddress);
     return await buildSignBroadcast(transaction as any, network);
   } catch (error: any) {
     throw new Error(`Failed to update account: ${error.message}`);

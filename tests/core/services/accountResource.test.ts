@@ -8,8 +8,10 @@ import {
 } from "../../../src/core/services/accountResource.js";
 
 describe("Account Resource Services Integration (Nile)", () => {
-  const hasWallet = !!process.env.TRON_PRIVATE_KEY || !!process.env.TRON_MNEMONIC
-    || !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet =
+    !!process.env.TRON_PRIVATE_KEY ||
+    !!process.env.TRON_MNEMONIC ||
+    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
 
   it.runIf(hasWallet)(
     "delegateResource should attempt to delegate and return error or tx hash",
@@ -118,7 +120,10 @@ describe("Account Resource Services Integration (Nile)", () => {
           `DelegatedResourceV2 entries between ${from} -> ${to}: ${result.delegatedResource.length}`,
         );
       } catch (error: any) {
-        console.log("AccountResource (getDelegatedResourceV2) integration feedback:", error.message);
+        console.log(
+          "AccountResource (getDelegatedResourceV2) integration feedback:",
+          error.message,
+        );
         expect(error.message).toContain("Failed to get delegated resource v2");
       }
     },

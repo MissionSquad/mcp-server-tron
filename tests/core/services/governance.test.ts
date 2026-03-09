@@ -15,8 +15,10 @@ import {
 const TEST_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
 describe("Governance Services Integration (Nile)", () => {
-  const hasWallet = !!process.env.TRON_PRIVATE_KEY || !!process.env.TRON_MNEMONIC
-    || !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet =
+    !!process.env.TRON_PRIVATE_KEY ||
+    !!process.env.TRON_MNEMONIC ||
+    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
 
   // ============================================================================
   // READ-ONLY TESTS
@@ -57,8 +59,7 @@ describe("Governance Services Integration (Nile)", () => {
   it("getBrokerage should return a brokerage value", async () => {
     // Use a known SR address on Nile or fallback to test address
     const witnesses = await listWitnesses("nile");
-    const srAddress =
-      witnesses.length > 0 ? witnesses[0].address : TEST_ADDRESS;
+    const srAddress = witnesses.length > 0 ? witnesses[0].address : TEST_ADDRESS;
 
     const brokerage = await getBrokerage(srAddress, "nile");
     expect(brokerage).toBeDefined();
@@ -111,10 +112,7 @@ describe("Governance Services Integration (Nile)", () => {
       }
 
       try {
-        const txHash = await voteWitness(
-          [{ address: witnesses[0].address, voteCount: 1 }],
-          "nile",
-        );
+        const txHash = await voteWitness([{ address: witnesses[0].address, voteCount: 1 }], "nile");
         expect(typeof txHash).toBe("string");
         console.log(`voteWitness Tx ID: ${txHash}`);
       } catch (error: any) {

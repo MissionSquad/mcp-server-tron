@@ -261,8 +261,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
                   network,
                   address,
                   availableUnfreezeCount: count,
-                  note:
-                    "Stake 2.0 allows up to 32 concurrent unstake operations. This value is the remaining quota.",
+                  note: "Stake 2.0 allows up to 32 concurrent unstake operations. This value is the remaining quota.",
                 },
                 null,
                 2,
@@ -354,4 +353,3 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
   );
 }
-
