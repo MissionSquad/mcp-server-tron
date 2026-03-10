@@ -226,13 +226,7 @@ export async function buildSignBroadcast(
  */
 export async function signMessageWithWallet(message: string): Promise<string> {
   if (isLegacyMode()) {
-    const privateKey = getLegacyPrivateKey();
-    const apiKey = process.env.TRONGRID_API_KEY;
-    const tronWeb = new TronWeb({
-      fullHost: "https://api.trongrid.io",
-      privateKey,
-      headers: apiKey ? { "TRON-PRO-API-KEY": apiKey } : undefined,
-    });
+    const tronWeb = getWallet(getLegacyPrivateKey());
     return await tronWeb.trx.sign(message);
   }
 
@@ -250,13 +244,7 @@ export async function signTypedDataWithWallet(
   value: object,
 ): Promise<string> {
   if (isLegacyMode()) {
-    const privateKey = getLegacyPrivateKey();
-    const apiKey = process.env.TRONGRID_API_KEY;
-    const tronWeb = new TronWeb({
-      fullHost: "https://api.trongrid.io",
-      privateKey,
-      headers: apiKey ? { "TRON-PRO-API-KEY": apiKey } : undefined,
-    });
+    const tronWeb = getWallet(getLegacyPrivateKey());
     if (typeof (tronWeb.trx as any)._signTypedData === "function") {
       return await (tronWeb.trx as any)._signTypedData(domain, types, value);
     }
