@@ -13,8 +13,10 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
       description:
         "Delegate staked resources (BANDWIDTH or ENERGY) from the configured wallet to another address.",
       inputSchema: {
-        receiverAddress: z.string().describe("The address that will receive the delegated resources"),
-        amount: z
+        receiverAddress: z
+          .string()
+          .describe("The address that will receive the delegated resources"),
+        amount: z.coerce
           .number()
           .describe("Amount of resources to delegate in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
@@ -42,19 +44,10 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
         openWorldHint: true,
       },
     },
-    async ({
-      receiverAddress,
-      amount,
-      resource,
-      lock,
-      lockPeriod,
-      network = "mainnet",
-    }) => {
+    async ({ receiverAddress, amount, resource, lock, lockPeriod, network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
+        const senderAddress = await services.getOwnerAddress();
         const txHash = await services.delegateResource(
-          privateKey,
           {
             amount,
             receiverAddress,
@@ -77,7 +70,7 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
                   amount,
                   resource,
                   lock: lock ?? false,
-                  lockPeriod: lock ? lockPeriod ?? 0 : 0,
+                  lockPeriod: lock ? (lockPeriod ?? 0) : 0,
                   txHash,
                   message:
                     "Delegate resource transaction sent. Make sure you have enough frozen balance to cover this delegation.",
@@ -93,9 +86,9 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
           content: [
             {
               type: "text",
-              text: `Error delegating resource: ${error instanceof Error ? error.message : String(
-                error,
-              )}`,
+              text: `Error delegating resource: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
             },
           ],
           isError: true,
@@ -110,10 +103,10 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
       description:
         "Revoke previously delegated staked resources (BANDWIDTH or ENERGY) from a receiver address back to the configured wallet.",
       inputSchema: {
-        receiverAddress: z.string().describe(
-          "The address from which delegated resources will be revoked",
-        ),
-        amount: z
+        receiverAddress: z
+          .string()
+          .describe("The address from which delegated resources will be revoked"),
+        amount: z.coerce
           .number()
           .describe("Amount of resources to revoke in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
@@ -131,10 +124,8 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
     },
     async ({ receiverAddress, amount, resource, network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
+        const senderAddress = await services.getOwnerAddress();
         const txHash = await services.undelegateResource(
-          privateKey,
           {
             amount,
             receiverAddress,
@@ -169,9 +160,9 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
           content: [
             {
               type: "text",
-              text: `Error undelegating resource: ${error instanceof Error ? error.message : String(
-                error,
-              )}`,
+              text: `Error undelegating resource: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
             },
           ],
           isError: true,
@@ -356,4 +347,3 @@ export function registerAccountResourceTools(registerTool: RegisterToolFn) {
     },
   );
 }
-

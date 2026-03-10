@@ -82,7 +82,7 @@ export function registerBroadcastTools(registerTool: RegisterToolFn) {
       inputSchema: {
         ownerAddress: z.string().describe("Sender address (Base58)"),
         toAddress: z.string().describe("Recipient address (Base58)"),
-        amount: z
+        amount: z.coerce
           .number()
           .int()
           .positive()

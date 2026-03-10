@@ -1,4 +1,5 @@
 // Export all services
+export * from "./agent-wallet.js";
 export * from "./clients.js";
 export * from "./balance.js";
 export * from "./transfer.js";
@@ -10,7 +11,7 @@ export * from "./address.js";
 export * from "./wallet.js";
 export * from "./multicall-abi.js";
 export * from "./staking.js";
-export * from "./accountResource.js";
+export * from "./account-resource.js";
 export * from "./query.js";
 export * from "./broadcast.js";
 export * from "./nodes.js";
@@ -25,6 +26,7 @@ export * from "./contract-data.js";
 export * from "./utils.js"; // Export utils as top level as well
 
 // Add a helper object for easier access to everything
+import * as agentWallet from "./agent-wallet.js";
 import * as clients from "./clients.js";
 import * as wallet from "./wallet.js";
 import * as balance from "./balance.js";
@@ -36,7 +38,7 @@ import * as transfer from "./transfer.js";
 import * as utils from "./utils.js";
 import * as address from "./address.js";
 import * as staking from "./staking.js";
-import * as accountResource from "./accountResource.js";
+import * as accountResource from "./account-resource.js";
 import * as query from "./query.js";
 import * as broadcast from "./broadcast.js";
 import * as nodes from "./nodes.js";
@@ -51,6 +53,7 @@ import * as contractData from "./contract-data.js";
 
 // Re-export specific utils function as 'helpers' for backward compatibility with tools code
 export const helpers: Record<string, unknown> & { formatJson: (data: unknown) => string } = {
+  ...agentWallet,
   ...clients,
   ...wallet,
   ...balance,

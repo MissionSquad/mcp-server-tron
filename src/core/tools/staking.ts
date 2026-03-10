@@ -9,7 +9,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     {
       description: "Freeze TRX to get resources (Stake 2.0).",
       inputSchema: {
-        amount: z.string().describe("Amount to freeze in Sun (1 TRX = 1,000,000 Sun)"),
+        amount: z.coerce.string().describe("Amount to freeze in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
           .optional()
@@ -26,10 +26,8 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
     async ({ amount, resource = "BANDWIDTH", network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
+        const senderAddress = await services.getOwnerAddress();
         const txHash = await services.freezeBalanceV2(
-          privateKey,
           amount,
           resource as "BANDWIDTH" | "ENERGY",
           network,
@@ -72,7 +70,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     {
       description: "Unfreeze TRX to release resources (Stake 2.0).",
       inputSchema: {
-        amount: z.string().describe("Amount to unfreeze in Sun (1 TRX = 1,000,000 Sun)"),
+        amount: z.coerce.string().describe("Amount to unfreeze in Sun (1 TRX = 1,000,000 Sun)"),
         resource: z
           .enum(["BANDWIDTH", "ENERGY"])
           .optional()
@@ -89,10 +87,8 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
     async ({ amount, resource = "BANDWIDTH", network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
+        const senderAddress = await services.getOwnerAddress();
         const txHash = await services.unfreezeBalanceV2(
-          privateKey,
           amount,
           resource as "BANDWIDTH" | "ENERGY",
           network,
@@ -148,9 +144,8 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
     async ({ network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
-        const txHash = await services.withdrawExpireUnfreeze(privateKey, network);
+        const senderAddress = await services.getOwnerAddress();
+        const txHash = await services.withdrawExpireUnfreeze(network);
         return {
           content: [
             {
@@ -201,9 +196,8 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
     async ({ network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
-        const txHash = await services.cancelAllUnfreezeV2(privateKey, network);
+        const senderAddress = await services.getOwnerAddress();
+        const txHash = await services.cancelAllUnfreezeV2(network);
         return {
           content: [
             {
@@ -267,8 +261,7 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
                   network,
                   address,
                   availableUnfreezeCount: count,
-                  note:
-                    "Stake 2.0 allows up to 32 concurrent unstake operations. This value is the remaining quota.",
+                  note: "Stake 2.0 allows up to 32 concurrent unstake operations. This value is the remaining quota.",
                 },
                 null,
                 2,
@@ -360,4 +353,3 @@ export function registerStakingTools(registerTool: RegisterToolFn) {
     },
   );
 }
-

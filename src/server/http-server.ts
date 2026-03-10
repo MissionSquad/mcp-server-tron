@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import startServer from "./server.js";
+import startServer, { MCP_PROTOCOL_VERSION, version } from "./server.js";
 import express, { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
@@ -105,7 +105,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error handling request: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -133,7 +133,7 @@ app.get("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error handling SSE request: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -154,7 +154,7 @@ app.delete("/mcp", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error closing session: ${error}`);
     if (!res.headersSent) {
-      res.status(500).json({ error: `Internal server error: ${error}` });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 });
@@ -165,7 +165,6 @@ app.get("/health", (_req: Request, res: Response) => {
     status: "ok",
     server: server ? "initialized" : "initializing",
     activeSessions: transports.size,
-    sessionIds: Array.from(transports.keys()),
   });
 });
 
@@ -173,8 +172,8 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     name: "mcp-server-tron",
-    version: "1.1.3",
-    protocol: "MCP 2025-06-18",
+    version,
+    protocol: `MCP ${MCP_PROTOCOL_VERSION}`,
     transport: "Streamable HTTP",
     endpoints: {
       mcp: "/mcp",
@@ -217,7 +216,7 @@ const httpServer = app
     console.error(`mcp-server-tron running at http://${HOST}:${PORT}`);
     console.error(`MCP endpoint: http://${HOST}:${PORT}/mcp`);
     console.error(`Health check: http://${HOST}:${PORT}/health`);
-    console.error(`Protocol: MCP 2025-06-18 (Streamable HTTP)`);
+    console.error(`Protocol: MCP ${MCP_PROTOCOL_VERSION} (Streamable HTTP)`);
   })
   .on("error", (err: Error) => {
     console.error(`Server error: ${err}`);

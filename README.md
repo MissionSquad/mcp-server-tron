@@ -36,7 +36,7 @@ Key capabilities:
 - **Smart Contracts**: Interact with any TRON smart contract (Read/Write).
 - **Tokens**: Transfer TRX and TRC20 tokens; check balances.
 - **Address Management**: Convert between Hex (0x...) and Base58 (T...) formats.
-- **Wallet Integration**: Support for Private Key and Mnemonic (BIP-39) wallets.
+- **Wallet Integration**: Agent-wallet (encrypted keystore), Private Key, and Mnemonic (BIP-39) wallets.
 - **Multi-Network**: Seamless support for Mainnet, Nile, and Shasta.
 - **Dynamic Access Control**: Automatically hides write tools if no wallet is configured or if `--readonly` mode is active.
 
@@ -91,9 +91,10 @@ Key capabilities:
 
 ### Wallet & Security
 
-- **Flexible Wallet**: Configure via `TRON_PRIVATE_KEY` or `TRON_MNEMONIC`.
+- **Agent-Wallet (Recommended)**: Encrypted key storage via agent-wallet SDK — private keys never leave the keystore.
+- **Legacy Wallet**: Configure via `TRON_PRIVATE_KEY` or `TRON_MNEMONIC` environment variables.
 - **HD Wallet**: Supports BIP-44 derivation path `m/44'/195'/0'/0/{index}`.
-- **Signing**: Sign arbitrary messages.
+- **Signing**: Sign arbitrary messages and transactions.
 
 ## Supported Networks
 
@@ -110,7 +111,7 @@ Key capabilities:
 
 ```bash
 # Clone the repository
-git clone https://github.com/bankofai/mcp-server-tron.git
+git clone https://github.com/BofAI/mcp-server-tron.git
 cd mcp-server-tron
 
 # Install dependencies
@@ -134,22 +135,41 @@ To enable write operations (transfers, contract calls) and ensure reliable API a
     export TRONGRID_API_KEY="<YOUR_TRONGRID_API_KEY_HERE>"
     ```
 
-#### Wallet Configuration (Use Environment Variables)
+#### Wallet Configuration
 
-**Option 1: Private Key**
+Choose **one** of the following modes. If none is configured, the server runs in **read-only mode**.
+
+**Option 1: Agent-Wallet Mode (Recommended)**
+
+Private keys are encrypted at rest (Keystore V3: scrypt + AES-128-CTR) and never exposed in environment variables.
+
+> **Prerequisites**: Install and configure [agent-wallet](https://github.com/BofAI/agent-wallet) first:
+> ```bash
+> agent-wallet init
+> agent-wallet add
+> ```
 
 ```bash
-# Recommended: Add this to your ~/.zshrc or ~/.bashrc
+export AGENT_WALLET_PASSWORD="<YOUR_MASTER_PASSWORD>"
+export AGENT_WALLET_DIR="<YOUR_WALLET_DIR>"  # Optional, default: ~/.agent-wallet
+```
+
+**Option 2: Private Key (Legacy)**
+
+```bash
 export TRON_PRIVATE_KEY="<YOUR_PRIVATE_KEY_HERE>"
 ```
 
-**Option 2: Mnemonic Phrase**
+**Option 3: Mnemonic Phrase (Legacy)**
 
 ```bash
-# Recommended: Add this to your ~/.zshrc or ~/.bashrc
 export TRON_MNEMONIC="<WORD1> <WORD2> ... <WORD12>"
-export TRON_ACCOUNT_INDEX="0" # Optional, default: 0
+export TRON_ACCOUNT_INDEX="0"  # Optional, default: 0
 ```
+
+> **Security Note**: Legacy modes store keys in plaintext environment variables. Agent-wallet mode is strongly recommended for production use.
+
+> See [`.env.example`](.env.example) for a complete list of all supported environment variables.
 
 ### Server Configuration
 
@@ -166,7 +186,7 @@ npm start
 # Start in readonly mode (disables write tools)
 npm start -- --readonly
 
-# Start in HTTP mode (Server-Sent Events)
+# Start in HTTP mode (Streamable HTTP)
 npm run start:http
 ```
 
@@ -181,17 +201,17 @@ npm test
 # Unit tests (mocked services, no network)
 npx vitest tests/core/tools.test.ts                    # All MCP tools registration & handlers
 npx vitest tests/core/services/contracts.test.ts       # Contract services
-npx vitest tests/core/services/accountResource.test.ts # Account resource services
+npx vitest tests/core/services/account-resource.test.ts # Account resource services
 npx vitest tests/core/services/staking.test.ts         # Staking services
 
-# Integration tests (real Nile RPC; write tests require TRON_PRIVATE_KEY)
+# Integration tests (real Nile RPC; write tests require AGENT_WALLET_PASSWORD or TRON_PRIVATE_KEY)
 npx vitest tests/core/tools_integration.test.ts        # Full tool flow on Nile
 npx vitest tests/core/services/multicall.test.ts       # Multicall integration
 npx vitest tests/core/services/services.test.ts        # Services integration
 ```
 
 - **Unit tests** use mocks and do not need network or wallet.
-- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when `TRON_PRIVATE_KEY` is set in the environment and are skipped otherwise.
+- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when a wallet is configured (`AGENT_WALLET_PASSWORD` or `TRON_PRIVATE_KEY`) and are skipped otherwise.
 
 ### Client Configuration
 
@@ -221,7 +241,7 @@ Runs the latest version directly from npm.
       "command": "npx",
       "args": ["-y", "@bankofai/mcp-server-tron"],
       "env": {
-        "TRON_PRIVATE_KEY": "YOUR_KEY_HERE (Or set in system env)",
+        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD (Or set in system env)",
         "TRONGRID_API_KEY": "YOUR_KEY_HERE (Or set in system env)"
       }
     }
@@ -239,7 +259,7 @@ For developers running from the cloned repository.
       "command": "npx",
       "args": ["tsx", "/ABSOLUTE/PATH/TO/mcp-server-tron/src/index.ts"],
       "env": {
-        "TRON_PRIVATE_KEY": "YOUR_KEY_HERE (Or set in system env)",
+        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD (Or set in system env)",
         "TRONGRID_API_KEY": "YOUR_KEY_HERE (Or set in system env)"
       }
     }
@@ -248,7 +268,7 @@ For developers running from the cloned repository.
 ```
 
 **Option C: Official Hosted Server (Remote)**
-Connect to the official hosted server at `https://mcp-server.bankofai.io`. No installation required, readonly mode.
+Connect to the official hosted server at `https://tron-mcp-server.bankofai.io`. No installation required, readonly mode.
 
 Claude Desktop / Cursor / Claude Code:
 
@@ -256,7 +276,7 @@ Claude Desktop / Cursor / Claude Code:
 {
   "mcpServers": {
     "mcp-server-tron": {
-      "url": "https://mcp-server.bankofai.io/mcp"
+      "url": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -268,7 +288,7 @@ Google Antigravity:
 {
   "mcpServers": {
     "mcp-server-tron": {
-      "serverUrl": "https://mcp-server.bankofai.io/mcp"
+      "serverUrl": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -281,7 +301,7 @@ Opencode:
   "mcp": {
     "mcp-server-tron": {
       "type": "remote",
-      "url": "https://mcp-server.bankofai.io/mcp"
+      "url": "https://tron-mcp-server.bankofai.io/mcp"
     }
   }
 }
@@ -298,6 +318,8 @@ Opencode:
 | Tool Name            | Description                                         | Key Parameters |
 | :------------------- | :-------------------------------------------------- | :------------- |
 | `get_wallet_address` | Get the configured wallet's address (Base58 & Hex). | -              |
+| `list_wallets`       | List all available wallets with IDs and addresses.   | -              |
+| `select_wallet`      | Switch the active wallet at runtime (agent-wallet mode). | `walletId` |
 | `convert_address`    | Convert between Hex and Base58 formats.             | `address`      |
 
 #### Network & Resources
@@ -481,7 +503,9 @@ Opencode:
 ### Prompts
 
 - `prepare_transfer`: Interactive guide to prepare TRX/TRC20 transfers.
+- `interact_with_contract`: Step-by-step guide to interact with a smart contract.
 - `diagnose_transaction`: Analyze a transaction hash for status and errors.
+- `explain_tron_concept`: Explain a TRON blockchain concept with examples.
 - `analyze_wallet`: Comprehensive report of wallet assets.
 - `check_network_status`: Report on network health and resource costs.
 

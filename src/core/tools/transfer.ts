@@ -9,7 +9,7 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
       description: "Transfer TRX to an address.",
       inputSchema: {
         to: z.string().describe("Recipient address"),
-        amount: z.string().describe("Amount to send in TRX (e.g., '10.5')"),
+        amount: z.coerce.string().describe("Amount to send in TRX (e.g., '10.5')"),
         network: z.string().optional().describe("Network name. Defaults to mainnet."),
       },
       annotations: {
@@ -22,9 +22,8 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
     },
     async ({ to, amount, network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
-        const txHash = await services.transferTRX(privateKey, to, amount, network);
+        const senderAddress = await services.getOwnerAddress();
+        const txHash = await services.transferTRX(to, amount, network);
         return {
           content: [
             {
@@ -65,7 +64,7 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
       inputSchema: {
         tokenAddress: z.string().describe("The TRC20 token contract address"),
         to: z.string().describe("Recipient address"),
-        amount: z.string().describe("Amount to send (raw amount with decimals)"),
+        amount: z.coerce.string().describe("Amount to send (raw amount with decimals)"),
         network: z.string().optional().describe("Network name. Defaults to mainnet."),
       },
       annotations: {
@@ -78,9 +77,8 @@ export function registerTransferTools(registerTool: RegisterToolFn) {
     },
     async ({ tokenAddress, to, amount, network = "mainnet" }) => {
       try {
-        const privateKey = services.getConfiguredPrivateKey();
-        const senderAddress = services.getWalletAddressFromKey();
-        const result = await services.transferTRC20(tokenAddress, to, amount, privateKey, network);
+        const senderAddress = await services.getOwnerAddress();
+        const result = await services.transferTRC20(tokenAddress, to, amount, network);
         return {
           content: [
             {

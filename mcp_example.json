@@ -4,7 +4,8 @@
       "command": "npx",
       "args": ["tsx", "src/index.ts"],
       "env": {
-        "TRON_PRIVATE_KEY": "YOUR_PRIVATE_KEY_HERE"
+        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD_HERE",
+        "TRON_PRIVATE_KEY": "YOUR_PRIVATE_KEY_HERE (legacy, optional)"
       }
     }
   }
