@@ -7,7 +7,7 @@ const TEST_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
 // Use real wallet if available (agent-wallet or legacy private key)
 const REAL_KEY = process.env.TRON_PRIVATE_KEY;
-const HAS_AGENT_WALLET = !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+const HAS_AGENT_WALLET = !!process.env.AGENT_WALLET_PASSWORD;
 const HAS_REAL_KEY = HAS_AGENT_WALLET || (!!REAL_KEY && REAL_KEY.length === 64);
 
 describe("TRON Tools Integration (Nile)", () => {

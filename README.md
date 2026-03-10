@@ -201,7 +201,7 @@ npm test
 # Unit tests (mocked services, no network)
 npx vitest tests/core/tools.test.ts                    # All MCP tools registration & handlers
 npx vitest tests/core/services/contracts.test.ts       # Contract services
-npx vitest tests/core/services/accountResource.test.ts # Account resource services
+npx vitest tests/core/services/account-resource.test.ts # Account resource services
 npx vitest tests/core/services/staking.test.ts         # Staking services
 
 # Integration tests (real Nile RPC; write tests require AGENT_WALLET_PASSWORD or TRON_PRIVATE_KEY)
