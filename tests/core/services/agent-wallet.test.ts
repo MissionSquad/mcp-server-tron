@@ -462,71 +462,35 @@ describe("agent-wallet service", () => {
   });
 
   // =========================================================================
-  // generateAndStoreAccount
+  // generateAccount
   // =========================================================================
 
   describe("generateAccount", () => {
-    it("returns ephemeral account when AGENT_WALLET_PASSWORD is missing", async () => {
+    it("returns ephemeral account regardless of AGENT_WALLET_PASSWORD", async () => {
       setStaticEnv();
       const { generateAccount } = await freshImport();
       const result = await generateAccount();
-      expect(result.isStored).toBe(false);
-      expect(result.walletId).toBe("ephemeral");
       expect(result.address).toBe("TNewGeneratedAddress");
+      expect(result.privateKey).toBeDefined();
     });
 
-    it("generates and stores an encrypted key without switching active wallet", async () => {
-      setAgentWalletEnv();
-
-      const { generateAccount } = await freshImport();
-      const result = await generateAccount("my-wallet");
-      expect(result.walletId).toBe("my-wallet");
-      expect(result.address).toBe("TNewGeneratedAddress");
-      expect(result.isStored).toBe(true);
-      expect(mockSetActive).not.toHaveBeenCalled();
-    });
-
-    it("auto-generates wallet name when not provided", async () => {
+    it("generates a keypair without storage even if password is set", async () => {
       setAgentWalletEnv();
 
       const { generateAccount } = await freshImport();
       const result = await generateAccount();
-      expect(result.walletId).toMatch(/^tron-\d+$/);
       expect(result.address).toBe("TNewGeneratedAddress");
-      expect(result.isStored).toBe(true);
+      expect(result.privateKey).toBeDefined();
+      expect(mockSavePrivateKey).not.toHaveBeenCalled();
       expect(mockSetActive).not.toHaveBeenCalled();
     });
-  });
 
-  // =========================================================================
-  // Cross-operation state persistence
-  // =========================================================================
-
-  describe("cross-operation state persistence", () => {
-    it("generateAccount preserves active wallet", async () => {
+    it("does not trigger config refresh", async () => {
       setAgentWalletEnv();
-      mockGetWallet.mockResolvedValue(createMockWallet("TSwitchedAddr"));
-      mockGetActiveId.mockReturnValue("wallet-2");
-      const mod = await freshImport();
-      await mod.selectWallet("wallet-2");
-      mockSetActive.mockClear();
 
-      // generateAccount should NOT change active wallet
-      await mod.generateAccount("new-wallet");
+      const { generateAccount } = await freshImport();
+      await generateAccount();
       expect(mockSetActive).not.toHaveBeenCalled();
-
-      // Active wallet remains wallet-2
-      mockGetActiveId.mockReturnValue("wallet-2");
-      expect(mod.getActiveWalletId()).toBe("wallet-2");
-    });
-
-    it("selectWallet persists choice to provider config", async () => {
-      setAgentWalletEnv();
-      mockGetWallet.mockResolvedValue(createMockWallet("TSwitchedAddr"));
-      const mod = await freshImport();
-
-      await mod.selectWallet("wallet-2");
-      expect(mockSetActive).toHaveBeenCalledWith("wallet-2");
     });
   });
 });

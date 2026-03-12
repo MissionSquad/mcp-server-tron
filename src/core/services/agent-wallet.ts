@@ -12,15 +12,9 @@ import {
   resolveWalletProvider,
   type BaseWallet,
   type Eip712Capable,
-  TronWallet,
-  SecureKVStore,
-  loadConfig,
-  saveConfig,
 } from "@bankofai/agent-wallet";
 import { TronWeb } from "tronweb";
 import { getTronWeb } from "./clients.js";
-import { join } from "node:path";
-import { homedir } from "node:os";
 
 // ---------------------------------------------------------------------------
 // Module-level singleton state
@@ -237,53 +231,17 @@ export async function signTypedDataWithWallet(
 
 /**
  * Unified account generation.
- * - In Encrypted Storage mode: generates and stores the key.
- * - In Static/Env mode: generates and returns the key.
+ * Generates a keypair and returns it directly. It is NOT stored in agent-wallet.
  */
 export async function generateAccount(
-  walletId?: string,
-): Promise<{ walletId: string; address: string; privateKey?: string; message: string; isStored: boolean }> {
-  // 1. Generate keypair via TronWeb
+  _walletId?: string,
+): Promise<{ address: string; privateKey: string; message: string }> {
+  // Generate keypair via TronWeb
   const account = await TronWeb.createAccount();
-  const address = account.address.base58;
-  const privateKey = account.privateKey;
-  const id = walletId || `tron-${Date.now()}`;
 
-  // 2. Determine mode and handle accordingly
-  if (!!process.env.AGENT_WALLET_PASSWORD) {
-    const secretsDir = process.env.AGENT_WALLET_DIR || join(homedir(), ".agent-wallet");
-    const password = process.env.AGENT_WALLET_PASSWORD!;
-
-    const kvStore = new SecureKVStore(secretsDir, password);
-    kvStore.savePrivateKey(id, Buffer.from(privateKey, "hex"));
-
-    // Update config
-    const config = loadConfig(secretsDir);
-    config.wallets[id] = {
-      type: "tron_local",
-      identity_file: id,
-    };
-    saveConfig(secretsDir, config);
-
-    // Refresh provider to pick up new wallet
-    provider = null;
-    activeWallet = null;
-    activeAddress = null;
-
-    return {
-      walletId: id,
-      address,
-      isStored: true,
-      message: "Account generated and stored in encrypted storage.",
-    };
-  }
-
-  // Static/Env mode
   return {
-    walletId: "ephemeral",
-    address,
-    privateKey,
-    isStored: false,
-    message: "Static mode: account generated but NOT stored. Save your private key manually.",
+    address: account.address.base58,
+    privateKey: account.privateKey,
+    message: "Account generated successfully. Note: This account is NOT stored. Please save your private key manually.",
   };
 }
