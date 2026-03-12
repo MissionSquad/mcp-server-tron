@@ -34,4 +34,3 @@ export function getTronWeb(network = "mainnet"): TronWeb {
 
   return client;
 }
-

@@ -3,8 +3,7 @@ import { getTronWeb } from "./clients.js";
 import {
   getOwnerAddress,
   buildSignBroadcast,
-  generateAccount as generateAccountService,
-  isWalletConfigured,
+  generateAccountKeypair as generateAccountService,
 } from "./agent-wallet.js";
 
 /**
@@ -56,25 +55,15 @@ export async function getAccountBalance(
 
 /**
  * Generate a new account.
- * Unified interface that handles encryption if configured, otherwise returns raw key.
+ * Unified interface that returns a new keypair (ephemeral).
  */
-export async function generateAccount(walletId?: string) {
+export async function generateAccount() {
   try {
-    const result = await generateAccountService(walletId);
+    const result = await generateAccountService();
 
-    // In static mode, it returns the private key
-    if (!result.isStored) {
-      return {
-        address: { base58: result.address },
-        privateKey: result.privateKey,
-        message: result.message,
-      };
-    }
-
-    // In encrypted storage mode
     return {
-      walletId: result.walletId,
       address: { base58: result.address },
+      privateKey: result.privateKey,
       message: result.message,
     };
   } catch (error: any) {
@@ -221,26 +210,26 @@ export async function updateAccountPermissions(
   },
   activePermissions:
     | {
-      type: number;
-      permission_name: string;
-      threshold: number;
-      operations: string;
-      keys: { address: string; weight: number }[];
-    }
+        type: number;
+        permission_name: string;
+        threshold: number;
+        operations: string;
+        keys: { address: string; weight: number }[];
+      }
     | {
-      type: number;
-      permission_name: string;
-      threshold: number;
-      operations: string;
-      keys: { address: string; weight: number }[];
-    }[],
+        type: number;
+        permission_name: string;
+        threshold: number;
+        operations: string;
+        keys: { address: string; weight: number }[];
+      }[],
   witnessPermission:
     | {
-      type: number;
-      permission_name: string;
-      threshold: number;
-      keys: { address: string; weight: number }[];
-    }
+        type: number;
+        permission_name: string;
+        threshold: number;
+        keys: { address: string; weight: number }[];
+      }
     | null
     | undefined,
   network = "mainnet",

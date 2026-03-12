@@ -44,14 +44,19 @@ function ensureEnvMapping() {
   }
 }
 
-function getProvider(): WalletProvider {
+function getProvider(): WalletProvider | null {
   if (provider) return provider;
 
   ensureEnvMapping();
 
-  // resolveWalletProvider detects mode from AGENT_WALLET_* env vars
-  provider = resolveWalletProvider({ network: "tron" });
-  return provider;
+  try {
+    // resolveWalletProvider detects mode from AGENT_WALLET_* env vars
+    provider = resolveWalletProvider({ network: "tron" });
+    return provider;
+  } catch (_e) {
+    // Config missing or invalid - SDK throws ValueError
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +70,12 @@ export async function getActiveWallet(): Promise<BaseWallet> {
   if (activeWallet) return activeWallet;
 
   const p = getProvider();
+  if (!p) {
+    throw new Error(
+      "Wallet not configured. Please set AGENT_WALLET_PASSWORD, TRON_PRIVATE_KEY, TRON_MNEMONIC, or TRON_MNEMONIC_ACCOUNT_INDEX.",
+    );
+  }
+
   activeWallet = await p.getActiveWallet();
   activeAddress = await activeWallet.getAddress();
   return activeWallet;
@@ -85,10 +96,10 @@ export async function getOwnerAddress(): Promise<string> {
  */
 export async function selectWallet(walletId: string): Promise<{ id: string; address: string }> {
   const p = getProvider();
-  if (typeof (p as any).setActive !== "function") {
+  if (!p || typeof (p as any).setActive !== "function") {
     throw new Error(
-      "select_wallet is not available for this provider. " +
-      "Ensure AGENT_WALLET_PASSWORD is configured for encrypted storage mode.",
+      "select_wallet is not available. " +
+        "Ensure AGENT_WALLET_PASSWORD is configured for encrypted storage mode.",
     );
   }
 
@@ -111,6 +122,7 @@ export async function listAgentWallets(): Promise<
   Array<{ id: string; type: string; address: string }>
 > {
   const p = getProvider();
+  if (!p) return [];
 
   if (typeof (p as any).listWallets === "function") {
     const lp = p as any;
@@ -135,27 +147,13 @@ export async function listAgentWallets(): Promise<
  * Get the currently active wallet ID.
  */
 export function getActiveWalletId(): string | null {
-  if (!isWalletConfigured()) {
-    return null;
-  }
-
   const p = getProvider();
+  if (!p) return null;
+
   if (typeof (p as any).getActiveId === "function") {
     return (p as any).getActiveId();
   }
   return "default";
-}
-
-/**
- * True when the wallet is configured (stored or env-vars).
- */
-export function isWalletConfigured(): boolean {
-  ensureEnvMapping();
-  return (
-    !!process.env.AGENT_WALLET_PASSWORD ||
-    !!process.env.AGENT_WALLET_PRIVATE_KEY ||
-    !!process.env.AGENT_WALLET_MNEMONIC
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -233,15 +231,18 @@ export async function signTypedDataWithWallet(
  * Unified account generation.
  * Generates a keypair and returns it directly. It is NOT stored in agent-wallet.
  */
-export async function generateAccount(
-  _walletId?: string,
-): Promise<{ address: string; privateKey: string; message: string }> {
+export async function generateAccountKeypair(): Promise<{
+  address: string;
+  privateKey: string;
+  message: string;
+}> {
   // Generate keypair via TronWeb
   const account = await TronWeb.createAccount();
 
   return {
     address: account.address.base58,
     privateKey: account.privateKey,
-    message: "Account generated successfully. Note: This account is NOT stored. Please save your private key manually.",
+    message:
+      "Account generated successfully. Note: This account is NOT stored. Please save your private key manually.",
   };
 }

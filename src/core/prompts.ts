@@ -18,8 +18,6 @@ import * as services from "./services/index.js";
  * @param options Registration options
  */
 export function registerTRONPrompts(server: McpServer, options: { readOnly?: boolean } = {}) {
-  const { isWalletConfigured } = services;
-
   /**
    * Helper to register a prompt with automatic wallet requirement detection.
    * Prompts that guide write operations should only be registered if a wallet
@@ -46,7 +44,7 @@ export function registerTRONPrompts(server: McpServer, options: { readOnly?: boo
     }
 
     // 2. Skip if the prompt needs a wallet but none is configured
-    if (walletNeeded && !isWalletConfigured()) {
+    if (walletNeeded && services.getActiveWalletId() === null) {
       return;
     }
 

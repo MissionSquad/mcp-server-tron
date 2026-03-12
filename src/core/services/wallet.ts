@@ -1,16 +1,4 @@
-import {
-  isWalletConfigured as isWalletServiceConfigured,
-  getOwnerAddress,
-  signMessageWithWallet,
-  signTypedDataWithWallet,
-} from "./agent-wallet.js";
-
-/**
- * Check if any wallet is configured (encrypted storage or static env vars).
- */
-export const isWalletConfigured = (): boolean => {
-  return isWalletServiceConfigured();
-};
+import { getOwnerAddress, signMessageWithWallet, signTypedDataWithWallet } from "./agent-wallet.js";
 
 /**
  * Get the address of the active wallet (works in all modes).

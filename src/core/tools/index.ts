@@ -39,8 +39,6 @@ import { registerAccountResourceTools } from "./account-resource.js";
  * @param options Registration options (e.g., readOnly mode)
  */
 export function registerTRONTools(server: McpServer, options: { readOnly?: boolean } = {}) {
-  const { isWalletConfigured } = services;
-
   /**
    * Helper to register a tool with automatic wallet requirement detection.
    * If a tool is not read-only or explicitly requires a wallet, it will only be
@@ -75,7 +73,7 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
     }
 
     // 2. Skip if the tool needs a wallet but none is configured
-    if (walletNeeded && !isWalletConfigured()) {
+    if (walletNeeded && services.getActiveWalletId() === null) {
       return;
     }
 
