@@ -442,14 +442,14 @@ describe("TRON Tools Unit Tests", () => {
       expect(services.selectWallet).toHaveBeenCalledWith("wallet-2");
     });
 
-    it("select_wallet should return error in legacy mode", async () => {
+    it("select_wallet should return error in static mode", async () => {
       (services.selectWallet as any).mockRejectedValue(
-        new Error("select_wallet is not available in legacy mode"),
+        new Error("select_wallet is not available in static mode"),
       );
 
       const result = await registeredTools.get("select_wallet").handler({ walletId: "some-id" });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("not available in legacy mode");
+      expect(result.content[0].text).toContain("not available in static mode");
     });
 
     it("convert_address should handle hex to base58", async () => {

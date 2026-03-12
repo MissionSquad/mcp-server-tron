@@ -83,7 +83,7 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
                   wallets,
                   message:
                     wallets.length === 1 && wallets[0].id === "default"
-                      ? "Running in legacy mode with a single wallet from environment variables."
+                      ? "Using static wallet configured via environment variables."
                       : `Found ${wallets.length} wallet(s). Use select_wallet to switch the active wallet.`,
                 },
                 null,
@@ -110,7 +110,7 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
     "select_wallet",
     {
       description:
-        "Switch the active wallet at runtime. Use list_wallets to see available wallet IDs. Only available in agent-wallet mode.",
+        "Switch the active wallet at runtime. Use list_wallets to see available wallet IDs. Only available in Encrypted Storage mode.",
       inputSchema: {
         walletId: z.string().describe("The wallet ID to switch to"),
       },

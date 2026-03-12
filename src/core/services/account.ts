@@ -3,8 +3,8 @@ import { getTronWeb } from "./clients.js";
 import {
   getOwnerAddress,
   buildSignBroadcast,
-  generateAndStoreAccount,
-  isAgentWalletConfigured,
+  generateAccount as generateAccountService,
+  isWalletConfigured,
 } from "./agent-wallet.js";
 
 /**
@@ -56,23 +56,27 @@ export async function getAccountBalance(
 
 /**
  * Generate a new account.
- * - agent-wallet mode: generates key, stores encrypted, returns walletId + address
- * - legacy mode: generates offline keypair (no network interaction)
+ * Unified interface that handles encryption if configured, otherwise returns raw key.
  */
-export async function generateAccount() {
+export async function generateAccount(walletId?: string) {
   try {
-    if (isAgentWalletConfigured()) {
-      const result = await generateAndStoreAccount();
+    const result = await generateAccountService(walletId);
+
+    // In static mode, it returns the private key
+    if (!result.isStored) {
       return {
-        walletId: result.walletId,
         address: { base58: result.address },
-        message: "Account generated and stored in agent-wallet (private key encrypted at rest)",
+        privateKey: result.privateKey,
+        message: result.message,
       };
     }
 
-    // Legacy mode: generate offline keypair
-    const account = await TronWeb.createAccount();
-    return account;
+    // In encrypted storage mode
+    return {
+      walletId: result.walletId,
+      address: { base58: result.address },
+      message: result.message,
+    };
   } catch (error: any) {
     throw new Error(`Failed to generate account: ${error.message}`);
   }
@@ -217,26 +221,26 @@ export async function updateAccountPermissions(
   },
   activePermissions:
     | {
-        type: number;
-        permission_name: string;
-        threshold: number;
-        operations: string;
-        keys: { address: string; weight: number }[];
-      }
+      type: number;
+      permission_name: string;
+      threshold: number;
+      operations: string;
+      keys: { address: string; weight: number }[];
+    }
     | {
-        type: number;
-        permission_name: string;
-        threshold: number;
-        operations: string;
-        keys: { address: string; weight: number }[];
-      }[],
+      type: number;
+      permission_name: string;
+      threshold: number;
+      operations: string;
+      keys: { address: string; weight: number }[];
+    }[],
   witnessPermission:
     | {
-        type: number;
-        permission_name: string;
-        threshold: number;
-        keys: { address: string; weight: number }[];
-      }
+      type: number;
+      permission_name: string;
+      threshold: number;
+      keys: { address: string; weight: number }[];
+    }
     | null
     | undefined,
   network = "mainnet",

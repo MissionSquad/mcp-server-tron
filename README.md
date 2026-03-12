@@ -91,8 +91,8 @@ Key capabilities:
 
 ### Wallet & Security
 
-- **Agent-Wallet (Recommended)**: Encrypted key storage via agent-wallet SDK — private keys never leave the keystore.
-- **Legacy Wallet**: Configure via `TRON_PRIVATE_KEY` or `TRON_MNEMONIC` environment variables.
+- **Agent Wallet (Recommended)**: Encrypted key storage via agent-wallet SDK — private keys never leave the keystore.
+- **Static Wallet**: Configure via `TRON_PRIVATE_KEY` or `TRON_MNEMONIC` environment variables.
 - **HD Wallet**: Supports BIP-44 derivation path `m/44'/195'/0'/0/{index}`.
 - **Signing**: Sign arbitrary messages and transactions.
 
@@ -150,7 +150,7 @@ export AGENT_WALLET_PASSWORD="<YOUR_MASTER_PASSWORD>"
 export AGENT_WALLET_DIR="<YOUR_WALLET_DIR>"  # Optional, default: ~/.agent-wallet
 ```
 
-> `AGENT_WALLET_PASSWORD` must match the master password used during `agent-wallet`. If not set, agent-wallet mode is disabled and the server falls back to legacy mode or read-only mode.
+> `AGENT_WALLET_PASSWORD` must match the master password used during `agent-wallet`. If not set, agent-wallet mode is disabled and the server falls back to static mode or read-only mode.
 
 **Option 2: Private Key**
 
@@ -165,7 +165,7 @@ export TRON_MNEMONIC="<WORD1> <WORD2> ... <WORD12>"
 export TRON_ACCOUNT_INDEX="0"  # Optional, default: 0
 ```
 
-> **Security Note**: Legacy modes store keys in plaintext environment variables. Agent-wallet mode is strongly recommended for production use.
+> **Security Note**: Static modes store keys in plaintext environment variables. Agent-wallet mode is strongly recommended for production use.
 
 > See [`.env.example`](.env.example) for a complete list of all supported environment variables.
 

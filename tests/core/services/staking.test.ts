@@ -9,7 +9,7 @@ import {
 } from "../../../src/core/services/staking.js";
 
 describe("Staking Services Integration (Nile)", () => {
-  // Only run if wallet is configured (agent-wallet or legacy env vars)
+  // Only run if wallet is configured (agent-wallet or static env vars)
   const hasWallet =
     !!process.env.TRON_PRIVATE_KEY ||
     !!process.env.TRON_MNEMONIC ||

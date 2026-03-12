@@ -1,19 +1,19 @@
 import {
-  isAgentWalletConfigured,
+  isWalletConfigured as isWalletServiceConfigured,
   getOwnerAddress,
   signMessageWithWallet,
   signTypedDataWithWallet,
 } from "./agent-wallet.js";
 
 /**
- * Check if any wallet is configured (agent-wallet or legacy env vars).
+ * Check if any wallet is configured (encrypted storage or static env vars).
  */
 export const isWalletConfigured = (): boolean => {
-  return isAgentWalletConfigured() || !!(process.env.TRON_PRIVATE_KEY || process.env.TRON_MNEMONIC);
+  return isWalletServiceConfigured();
 };
 
 /**
- * Get the address of the active wallet (works in both modes).
+ * Get the address of the active wallet (works in all modes).
  */
 export const getWalletAddress = getOwnerAddress;
 
