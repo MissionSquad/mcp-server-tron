@@ -71,11 +71,12 @@ describe("Account Services Integration (Nile)", () => {
     expect(result.format).toBe("hex");
   });
 
-  it("generateAccount should create a new keypair offline", async () => {
+  it("generateAccount should create a new keypair", async () => {
     const account = await generateAccount();
-    // In legacy mode, returns { privateKey, publicKey, address }
+    // Returns { address, privateKey, message }
     expect(account).toBeDefined();
     expect((account as any).address).toBeDefined();
+    expect((account as any).privateKey).toBeDefined();
     console.log("Generated address:", (account as any).address);
   }, 10000);
 

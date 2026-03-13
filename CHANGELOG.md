@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.5] - 2026-03-13
+
+### Changed
+
+- **Full Agent-Wallet Alignment**: Transitioned all wallet and environment handling to the `@bankofai/agent-wallet` SDK (v2.2.0).
+- **Static Mode Support**: The system now fully leverages the SDK's **Static Mode**, moving the responsibility of environment variable management (including fallback logic) to the `agent-wallet` layer.
+- **Simplified Account Generation**: Optimized `generateAccount` services to return keypairs directly without side-effects, aligning with the stateless SDK patterns.
+
 ## [1.1.4] - 2026-03-06
 
 ### Added

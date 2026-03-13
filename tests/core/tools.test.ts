@@ -12,7 +12,6 @@ vi.mock("../../src/core/services/index", async () => {
     getActiveWalletId: vi.fn(),
     listAgentWallets: vi.fn(),
     selectWallet: vi.fn(),
-    isWalletConfigured: vi.fn(),
     getChainId: vi.fn(),
     getBlockNumber: vi.fn(),
     getTRXBalance: vi.fn(),
@@ -125,7 +124,7 @@ describe("TRON Tools Unit Tests", () => {
       return originalRegisterTool(name, schema, handler);
     };
 
-    (services.isWalletConfigured as any).mockReturnValue(true);
+    (services.getActiveWalletId as any).mockReturnValue("default");
     registerTRONTools(server);
     vi.clearAllMocks();
   });
@@ -255,7 +254,7 @@ describe("TRON Tools Unit Tests", () => {
         return originalRegisterTool(name, schema, handler);
       };
 
-      (services.isWalletConfigured as any).mockReturnValue(true);
+      (services.getActiveWalletId as any).mockReturnValue("default");
       registerTRONTools(localServer, { readOnly: true });
 
       // Write tools should NOT be registered
@@ -285,7 +284,7 @@ describe("TRON Tools Unit Tests", () => {
       expect(registeredTools.has("delete_proposal")).toBe(false);
 
       // get_wallet_address IS a read tool (readOnlyHint: true)
-      // Since isWalletConfigured is mocked to true, it SHOULD be registered
+      // Since getActiveWalletId() is mocked to "default", it SHOULD be registered
       // even in readonly mode because it doesn't perform write operations.
       expect(registeredTools.has("get_wallet_address")).toBe(true);
 
@@ -312,7 +311,7 @@ describe("TRON Tools Unit Tests", () => {
         return originalRegisterTool(name, schema, handler);
       };
 
-      (services.isWalletConfigured as any).mockReturnValue(false);
+      (services.getActiveWalletId as any).mockReturnValue(null);
       registerTRONTools(localServer);
 
       // Write tools should NOT be registered (no wallet)
@@ -442,14 +441,14 @@ describe("TRON Tools Unit Tests", () => {
       expect(services.selectWallet).toHaveBeenCalledWith("wallet-2");
     });
 
-    it("select_wallet should return error in legacy mode", async () => {
+    it("select_wallet should return error in static mode", async () => {
       (services.selectWallet as any).mockRejectedValue(
-        new Error("select_wallet is not available in legacy mode"),
+        new Error("select_wallet is not available in static mode"),
       );
 
       const result = await registeredTools.get("select_wallet").handler({ walletId: "some-id" });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("not available in legacy mode");
+      expect(result.content[0].text).toContain("not available in static mode");
     });
 
     it("convert_address should handle hex to base58", async () => {

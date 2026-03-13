@@ -3,8 +3,7 @@ import { getTronWeb } from "./clients.js";
 import {
   getOwnerAddress,
   buildSignBroadcast,
-  generateAndStoreAccount,
-  isAgentWalletConfigured,
+  generateAccountKeypair as generateAccountService,
 } from "./agent-wallet.js";
 
 /**
@@ -56,23 +55,17 @@ export async function getAccountBalance(
 
 /**
  * Generate a new account.
- * - agent-wallet mode: generates key, stores encrypted, returns walletId + address
- * - legacy mode: generates offline keypair (no network interaction)
+ * Unified interface that returns a new keypair (ephemeral).
  */
 export async function generateAccount() {
   try {
-    if (isAgentWalletConfigured()) {
-      const result = await generateAndStoreAccount();
-      return {
-        walletId: result.walletId,
-        address: { base58: result.address },
-        message: "Account generated and stored in agent-wallet (private key encrypted at rest)",
-      };
-    }
+    const result = await generateAccountService();
 
-    // Legacy mode: generate offline keypair
-    const account = await TronWeb.createAccount();
-    return account;
+    return {
+      address: { base58: result.address },
+      privateKey: result.privateKey,
+      message: result.message,
+    };
   } catch (error: any) {
     throw new Error(`Failed to generate account: ${error.message}`);
   }

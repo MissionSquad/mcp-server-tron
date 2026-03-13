@@ -5,7 +5,7 @@ import { registerTRONTools } from "../../src/core/tools/index";
 const USDT_ADDRESS_NILE = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 const TEST_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
-// Use real wallet if available (agent-wallet or legacy private key)
+// Use real wallet if available (agent-wallet or static private key)
 const REAL_KEY = process.env.TRON_PRIVATE_KEY;
 const HAS_AGENT_WALLET = !!process.env.AGENT_WALLET_PASSWORD;
 const HAS_REAL_KEY = HAS_AGENT_WALLET || (!!REAL_KEY && REAL_KEY.length === 64);
@@ -457,14 +457,13 @@ describe("TRON Tools Integration (Nile)", () => {
     expect(content.format).toBe("base58");
   });
 
-  it("generate_account should generate a new keypair offline", async () => {
+  it("generate_account should generate a new keypair", async () => {
     const tool = registeredTools.get("generate_account");
     const result = await tool.handler({});
 
     expect(result.isError).toBeUndefined();
     const content = JSON.parse(result.content[0].text);
-    // In legacy mode: returns { privateKey, publicKey, address }
-    // In agent-wallet mode: returns { walletId, address, message }
+    // Returns { address, privateKey?, walletId?, message }
     expect(content.address).toBeDefined();
   }, 10000);
 

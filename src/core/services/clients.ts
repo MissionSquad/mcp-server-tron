@@ -34,24 +34,3 @@ export function getTronWeb(network = "mainnet"): TronWeb {
 
   return client;
 }
-
-/**
- * @deprecated Use signTransaction / buildSignBroadcast from agent-wallet.ts instead.
- * Only used internally by agent-wallet.ts for legacy mode signing.
- */
-export function getWallet(privateKey: string, network = "mainnet"): TronWeb {
-  const config = getNetworkConfig(network);
-  const apiKey = process.env.TRONGRID_API_KEY;
-
-  // TronWeb expects private key without 0x prefix usually, but handles it if present?
-  // Let's strip 0x to be safe as TronWeb often prefers clean hex
-  const cleanKey = privateKey.startsWith("0x") ? privateKey.slice(2) : privateKey;
-
-  return new TronWeb({
-    fullHost: config.fullNode,
-    solidityNode: config.solidityNode,
-    eventServer: config.eventServer,
-    privateKey: cleanKey,
-    headers: apiKey ? { "TRON-PRO-API-KEY": apiKey } : undefined,
-  });
-}
