@@ -12,7 +12,8 @@ FROM node:20-bookworm-slim AS runtime
 
 WORKDIR /app
 
-RUN groupadd --system ec2-user && useradd --system --gid ec2-user --create-home ec2-user
+RUN useradd -r -s /bin/false ec2-user && \
+    groupmod -g 1000 ec2-user && usermod -u 1000 -g 1000 ec2-user
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
