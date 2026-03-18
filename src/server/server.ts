@@ -54,7 +54,7 @@ async function startServer(options: { readOnly?: boolean } = {}) {
     return server;
   } catch (error) {
     console.error("Failed to initialize server:", error);
-    process.exit(1);
+    throw error;
   }
 }
 

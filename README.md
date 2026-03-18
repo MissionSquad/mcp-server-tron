@@ -184,9 +184,35 @@ npm start
 # Start in readonly mode (disables write tools)
 npm start -- --readonly
 
-# Start in HTTP mode (Streamable HTTP)
+# Start in stateless HTTP mode (Streamable HTTP)
 npm run start:http
 ```
+
+### Docker
+
+Build the image:
+
+```bash
+docker build -t mcp-server-tron:test .
+```
+
+Run the container with local logs mounted:
+
+```bash
+docker run -d \
+  --name mcp-tron \
+  -p 3001:3001 \
+  -e MCP_HOST=0.0.0.0 \
+  -e MCP_PORT=3001 \
+  -e MCP_LOG_DIR=/app/logs \
+  -v "$(pwd)/logs:/app/logs" \
+  mcp-server-tron:test
+```
+
+Docker logs are written to the mounted `logs/` directory and are named by date, for example:
+
+- `logs/mcp-server-tron-2026-03-18-combined.log`
+- `logs/mcp-server-tron-2026-03-18-error.log`
 
 ### Testing
 
@@ -248,7 +274,7 @@ claude mcp add -e AGENT_WALLET_PASSWORD=xxx -e TRONGRID_API_KEY=xxx mcp-server-t
 
 #### Option B: Official Hosted Server (Remote)
 
-Connect to the official hosted server at `https://tron-mcp-server.bankofai.io`. No installation required, readonly mode.
+Connect to the official hosted server at `https://tron-mcp-server.bankofai.io`. No installation required, readonly mode, stateless HTTP.
 
 **Claude Code:**
 
