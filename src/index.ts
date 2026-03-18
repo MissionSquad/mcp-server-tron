@@ -8,7 +8,7 @@ async function main() {
     const server = await startServer({ readOnly: isReadOnly });
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.log(`mcp-server-tron running on stdio${isReadOnly ? " (readonly)" : ""}`);
+    console.error(`mcp-server-tron running on stdio${isReadOnly ? " (readonly)" : ""}`);
   } catch (error) {
     console.error("Error starting MCP server:", error);
     process.exit(1);

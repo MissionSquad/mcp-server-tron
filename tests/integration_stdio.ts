@@ -36,6 +36,7 @@ async function runIntegrationTest() {
   };
 
   let buffer = "";
+  const badStdoutLines: string[] = [];
 
   // Helper to wait for a specific response
   const waitForResponse = (id: string | number): Promise<any> => {
@@ -54,7 +55,7 @@ async function runIntegrationTest() {
               resolve(json);
             }
           } catch (_e) {
-            // Ignore non-JSON lines (logs)
+            badStdoutLines.push(line);
           }
         }
       };
@@ -128,6 +129,10 @@ async function runIntegrationTest() {
     });
     const callRes = await callPromise;
     console.log("✅ Tool Result:", JSON.parse(callRes.result.content[0].text));
+
+    if (badStdoutLines.length > 0) {
+      throw new Error(`Non-JSON stdout detected: ${badStdoutLines.join(" | ")}`);
+    }
 
     console.log("🎉 Integration Test Passed!");
   } catch (error) {

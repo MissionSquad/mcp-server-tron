@@ -14,13 +14,13 @@ export function createHttpApp(options: { readOnly?: boolean } = {}): HttpAppCont
 
   app.post("/mcp", async (req: Request, res: Response) => {
     console.log(`Received POST /mcp request from ${req.ip}`);
-
-    const server = await startServer({ readOnly: options.readOnly });
+    let server: Awaited<ReturnType<typeof startServer>> | undefined;
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
 
     try {
+      server = await startServer({ readOnly: options.readOnly });
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
@@ -29,9 +29,11 @@ export function createHttpApp(options: { readOnly?: boolean } = {}): HttpAppCont
         res.status(500).json({ error: "Internal server error" });
       }
     } finally {
-      await server.close().catch((closeError) => {
-        console.error(`Error closing stateless server: ${closeError}`);
-      });
+      if (server) {
+        await server.close().catch((closeError) => {
+          console.error(`Error closing stateless server: ${closeError}`);
+        });
+      }
     }
   });
 
