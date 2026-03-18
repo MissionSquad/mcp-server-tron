@@ -43,13 +43,13 @@ async function startServer(options: { readOnly?: boolean } = {}) {
     registerTRONPrompts(server, options);
 
     // Log server information
-    console.error(`mcp-server-tron v${version} initialized`);
+    console.log(`mcp-server-tron v${version} initialized`);
     if (options.readOnly) {
-      console.error("Mode: Read-only (Write tools disabled)");
+      console.log("Mode: Read-only (Write tools disabled)");
     }
-    console.error(`Protocol: MCP ${MCP_PROTOCOL_VERSION}`);
-    console.error(`Supported networks: ${getSupportedNetworks().length} networks`);
-    console.error("Server is ready to handle requests");
+    console.log(`Protocol: MCP ${MCP_PROTOCOL_VERSION}`);
+    console.log(`Supported networks: ${getSupportedNetworks().length} networks`);
+    console.log("Server is ready to handle requests");
 
     return server;
   } catch (error) {

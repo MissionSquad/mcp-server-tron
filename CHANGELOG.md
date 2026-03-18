@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.6] - 2026-03-18
+
+### Changed
+
+- Switched HTTP MCP to stateless Streamable HTTP to avoid `mcp-session-id` issues across multiple instances.
+- Added Docker support with `docker-start.sh`, `Dockerfile`, and a GitHub Actions Docker build workflow.
+- Container logs now write to local `logs/` files with date-based names prefixed by `mcp-server-tron`.
+
 ## [1.1.5] - 2026-03-13
 
 ### Changed

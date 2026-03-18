@@ -37,7 +37,14 @@ async function readFirstSseMessage(response: Response): Promise<unknown> {
   throw new Error("No SSE message received");
 }
 
-async function initializeTransport(transport: WebStandardStreamableHTTPServerTransport) {
+async function sendStatelessRequest(body: Record<string, unknown>) {
+  const server = await startServer({ readOnly: true });
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
+
+  await server.connect(transport);
+
   const response = await transport.handleRequest(
     new Request("https://example.test/mcp", {
       method: "POST",
@@ -45,85 +52,14 @@ async function initializeTransport(transport: WebStandardStreamableHTTPServerTra
         "content-type": "application/json",
         accept: "application/json, text/event-stream",
       },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: PROTOCOL_VERSION,
-          capabilities: {},
-          clientInfo: {
-            name: "vitest-client",
-            version: "1.0.0",
-          },
-        },
-      }),
+      body: JSON.stringify(body),
     }),
   );
 
-  expect(response.status).toBe(200);
-
-  const sessionId = response.headers.get("mcp-session-id");
-  expect(sessionId).toBeTruthy();
-
-  const payload = (await readFirstSseMessage(response)) as { result: { protocolVersion: string } };
-  expect(payload.result.protocolVersion).toBe(PROTOCOL_VERSION);
-
-  return sessionId!;
+  return { server, response };
 }
 
-async function sendInitializedNotification(
-  transport: WebStandardStreamableHTTPServerTransport,
-  sessionId: string,
-) {
-  const response = await transport.handleRequest(
-    new Request("https://example.test/mcp", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        "mcp-session-id": sessionId,
-        "mcp-protocol-version": PROTOCOL_VERSION,
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-        params: {},
-      }),
-    }),
-  );
-
-  expect(response.status).toBe(202);
-}
-
-async function sendPing(
-  transport: WebStandardStreamableHTTPServerTransport,
-  sessionId: string,
-  id: number,
-) {
-  const response = await transport.handleRequest(
-    new Request("https://example.test/mcp", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json, text/event-stream",
-        "mcp-session-id": sessionId,
-        "mcp-protocol-version": PROTOCOL_VERSION,
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id,
-        method: "ping",
-        params: {},
-      }),
-    }),
-  );
-
-  expect(response.status).toBe(200);
-  return (await readFirstSseMessage(response)) as { id: number; result: Record<string, never> };
-}
-
-describe("Streamable HTTP session lifecycle", () => {
+describe("Streamable HTTP stateless lifecycle", () => {
   const serversToClose: Awaited<ReturnType<typeof startServer>>[] = [];
 
   afterEach(async () => {
@@ -133,68 +69,99 @@ describe("Streamable HTTP session lifecycle", () => {
     }
   });
 
-  it("rejects connecting a second transport to the same MCP server", async () => {
-    const server = await startServer({ readOnly: true });
+  it("allows initialize without returning an MCP session id", async () => {
+    const { server, response } = await sendStatelessRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: {
+          name: "vitest-client",
+          version: "1.0.0",
+        },
+      },
+    });
     serversToClose.push(server);
 
-    const firstTransport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => "session-a",
-    });
-    const secondTransport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => "session-b",
-    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
 
-    await server.connect(firstTransport);
-
-    await expect(server.connect(secondTransport)).rejects.toThrow(
-      "Already connected to a transport",
-    );
+    const payload = (await readFirstSseMessage(response)) as {
+      result: { protocolVersion: string };
+    };
+    expect(payload.result.protocolVersion).toBe(PROTOCOL_VERSION);
   });
 
-  it("keeps a session usable after initialize", async () => {
+  it("handles tools/list as an independent stateless request", async () => {
+    const { server, response } = await sendStatelessRequest({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+      params: {},
+    });
+    serversToClose.push(server);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+
+    const payload = (await readFirstSseMessage(response)) as {
+      id: number;
+      result: { tools: Array<{ name: string }> };
+    };
+    expect(payload.id).toBe(2);
+    expect(payload.result.tools.length).toBeGreaterThan(0);
+  });
+
+  it("does not allow reusing a stateless transport across requests", async () => {
     const server = await startServer({ readOnly: true });
     serversToClose.push(server);
 
     const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => "session-a",
+      sessionIdGenerator: undefined,
     });
 
     await server.connect(transport);
 
-    const sessionId = await initializeTransport(transport);
-    await sendInitializedNotification(transport, sessionId);
+    const firstResponse = await transport.handleRequest(
+      new Request("https://example.test/mcp", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: PROTOCOL_VERSION,
+            capabilities: {},
+            clientInfo: { name: "vitest-client", version: "1.0.0" },
+          },
+        }),
+      }),
+    );
 
-    const pingResponse = await sendPing(transport, sessionId, 2);
+    expect(firstResponse.status).toBe(200);
 
-    expect(pingResponse.id).toBe(2);
-    expect(pingResponse.result).toEqual({});
-  });
-
-  it("supports multiple independent sessions when each has its own server", async () => {
-    const serverA = await startServer({ readOnly: true });
-    const serverB = await startServer({ readOnly: true });
-    serversToClose.push(serverA, serverB);
-
-    const transportA = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => "session-a",
-    });
-    const transportB = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => "session-b",
-    });
-
-    await serverA.connect(transportA);
-    await serverB.connect(transportB);
-
-    const sessionA = await initializeTransport(transportA);
-    const sessionB = await initializeTransport(transportB);
-
-    await sendInitializedNotification(transportA, sessionA);
-    await sendInitializedNotification(transportB, sessionB);
-
-    const pingA = await sendPing(transportA, sessionA, 11);
-    const pingB = await sendPing(transportB, sessionB, 22);
-
-    expect(pingA.id).toBe(11);
-    expect(pingB.id).toBe(22);
+    await expect(
+      transport.handleRequest(
+        new Request("https://example.test/mcp", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json, text/event-stream",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 3,
+            method: "ping",
+            params: {},
+          }),
+        }),
+      ),
+    ).rejects.toThrow("Stateless transport cannot be reused across requests");
   });
 });
