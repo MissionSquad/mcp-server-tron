@@ -2,10 +2,10 @@ name: Docker Build
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev/stateless]
     tags: ["v*"]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, dev/stateless]
 
 jobs:
   build:
