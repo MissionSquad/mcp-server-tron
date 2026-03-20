@@ -10,7 +10,7 @@
 import {
   type WalletProvider,
   resolveWalletProvider,
-  type BaseWallet,
+  type Wallet,
   type Eip712Capable,
 } from "@bankofai/agent-wallet";
 import { TronWeb } from "tronweb";
@@ -21,7 +21,7 @@ import { getTronWeb } from "./clients.js";
 // ---------------------------------------------------------------------------
 
 let provider: WalletProvider | null = null;
-let activeWallet: BaseWallet | null = null;
+let activeWallet: Wallet | null = null;
 let activeAddress: string | null = null;
 
 // ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ function getProvider(): WalletProvider | null {
 /**
  * Get the currently active agent-wallet.
  */
-export async function getActiveWallet(): Promise<BaseWallet> {
+export async function getActiveWallet(): Promise<Wallet> {
   if (activeWallet) return activeWallet;
 
   const p = getProvider();
@@ -87,8 +87,12 @@ export async function getActiveWallet(): Promise<BaseWallet> {
 export async function getOwnerAddress(): Promise<string> {
   if (activeAddress) return activeAddress;
   const wallet = await getActiveWallet();
-  activeAddress = await wallet.getAddress();
-  return activeAddress;
+  const address = await wallet.getAddress();
+  if (address == null) {
+    throw new Error("Failed to resolve active wallet address");
+  }
+  activeAddress = address;
+  return address;
 }
 
 /**
@@ -126,13 +130,30 @@ export async function listAgentWallets(): Promise<
 
   if (typeof (p as any).listWallets === "function") {
     const lp = p as any;
+    // agent-wallet@2.3+: listWallets(): Array<[walletId, walletConfig, isActive]>
+    // agent-wallet@2.2 (and tests) may return Promise<Array<{id,type,...}>>.
     const wallets = await lp.listWallets();
     const result: Array<{ id: string; type: string; address: string }> = [];
 
     for (const w of wallets) {
-      const wallet = await lp.getWallet(w.id);
+      let walletId: string;
+      let walletType: string;
+
+      if (Array.isArray(w)) {
+        walletId = w[0] as string;
+        walletType = ((w[1] as { type?: string })?.type ?? "unknown") as string;
+      } else {
+        walletId = (w as { id?: string }).id ?? "";
+        walletType = ((w as { type?: string }).type ?? "unknown") as string;
+      }
+
+      if (!walletId) {
+        throw new Error("Invalid wallet id returned by agent-wallet provider");
+      }
+
+      const wallet = await lp.getWallet(walletId);
       const address = await wallet.getAddress();
-      result.push({ id: w.id, type: w.type, address });
+      result.push({ id: walletId, type: walletType, address });
     }
     return result;
   }
