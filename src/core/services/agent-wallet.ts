@@ -59,13 +59,11 @@ export async function getActiveWallet(): Promise<Wallet> {
  */
 export async function getOwnerAddress(): Promise<string> {
   if (activeAddress) return activeAddress;
-  const wallet = await getActiveWallet();
-  const address = await wallet.getAddress();
-  if (address == null) {
+  await getActiveWallet();
+  if (activeAddress == null) {
     throw new Error("Failed to resolve active wallet address");
   }
-  activeAddress = address;
-  return address;
+  return activeAddress;
 }
 
 /**
@@ -118,7 +116,8 @@ export async function listAgentWallets(): Promise<
       }
 
       if (!walletId) {
-        throw new Error("Invalid wallet id returned by agent-wallet provider");
+        // Skip malformed entries so one bad import does not hide all wallets.
+        continue;
       }
 
       const wallet = await lp.getWallet(walletId);
@@ -131,6 +130,9 @@ export async function listAgentWallets(): Promise<
   // Single-wallet mode
   const wallet = await p.getActiveWallet();
   const address = await wallet.getAddress();
+  if (address == null) {
+    return [];
+  }
   return [{ id: "single", type: "single", address }];
 }
 
