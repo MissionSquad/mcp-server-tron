@@ -2,9 +2,6 @@
  * Agent-wallet integration layer for mcp-server-tron.
  *
  * Provides a unified signing interface via agent-wallet SDK.
- * Supports:
- * - **Encrypted Storage mode**: Keys encrypted at rest (password-protected).
- * - **Static/Env mode**: Keys provided via environment variables.
  */
 
 import {
@@ -25,32 +22,10 @@ let activeWallet: Wallet | null = null;
 let activeAddress: string | null = null;
 
 // ---------------------------------------------------------------------------
-// Provider initialization (lazy)
-// ---------------------------------------------------------------------------
-
-/**
- * Configure environment variables for backward compatibility.
- * Maps TRON_PRIVATE_KEY -> AGENT_WALLET_PRIVATE_KEY etc.
- */
-function ensureEnvMapping() {
-  if (process.env.TRON_PRIVATE_KEY && !process.env.AGENT_WALLET_PRIVATE_KEY) {
-    process.env.AGENT_WALLET_PRIVATE_KEY = process.env.TRON_PRIVATE_KEY;
-  }
-  if (process.env.TRON_MNEMONIC && !process.env.AGENT_WALLET_MNEMONIC) {
-    process.env.AGENT_WALLET_MNEMONIC = process.env.TRON_MNEMONIC;
-  }
-  if (process.env.TRON_MNEMONIC_ACCOUNT_INDEX && !process.env.AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX) {
-    process.env.AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX = process.env.TRON_MNEMONIC_ACCOUNT_INDEX;
-  }
-}
-
 function getProvider(): WalletProvider | null {
   if (provider) return provider;
 
-  ensureEnvMapping();
-
   try {
-    // resolveWalletProvider detects mode from AGENT_WALLET_* env vars
     provider = resolveWalletProvider({ network: "tron" });
     return provider;
   } catch (_e) {
@@ -71,9 +46,7 @@ export async function getActiveWallet(): Promise<Wallet> {
 
   const p = getProvider();
   if (!p) {
-    throw new Error(
-      "Wallet not configured. Please set AGENT_WALLET_PASSWORD, TRON_PRIVATE_KEY, TRON_MNEMONIC, or TRON_MNEMONIC_ACCOUNT_INDEX.",
-    );
+    throw new Error("Wallet not configured.");
   }
 
   activeWallet = await p.getActiveWallet();
@@ -96,15 +69,12 @@ export async function getOwnerAddress(): Promise<string> {
 }
 
 /**
- * Switch the active wallet at runtime (Encrypted Storage mode only).
+ * Switch the active wallet at runtime when the provider supports multi-wallet selection.
  */
 export async function selectWallet(walletId: string): Promise<{ id: string; address: string }> {
   const p = getProvider();
   if (!p || typeof (p as any).setActive !== "function") {
-    throw new Error(
-      "select_wallet is not available. " +
-        "Ensure AGENT_WALLET_PASSWORD is configured for encrypted storage mode.",
-    );
+    throw new Error("select_wallet is not available.");
   }
 
   const lp = p as any;
@@ -158,10 +128,10 @@ export async function listAgentWallets(): Promise<
     return result;
   }
 
-  // Static/Env mode
+  // Single-wallet mode
   const wallet = await p.getActiveWallet();
   const address = await wallet.getAddress();
-  return [{ id: "default", type: "static", address }];
+  return [{ id: "default", type: "single", address }];
 }
 
 /**

@@ -77,11 +77,9 @@ This document provides essential information for AI agents working on this repos
 
 - **Sensitive Data**: NEVER hardcode private keys or mnemonics.
 - **Env Vars**:
-  - `AGENT_WALLET_PASSWORD`: Master password for agent-wallet encrypted keystore (recommended).
-  - `AGENT_WALLET_DIR`: Wallet directory (optional, default: `~/.agent-wallet`).
-  - `TRON_PRIVATE_KEY`: Hex key for write operations.
-  - `TRON_MNEMONIC`: 12/24 word phrase (alternative to key).
   - `TRONGRID_API_KEY`: Optional but recommended for Mainnet.
+  - This repository no longer reads or maps legacy `TRON_*` wallet variables.
+  - Wallet setup should follow `agent-wallet` file-backed configuration and the SDK-supported `AGENT_WALLET_*` settings.
 
 ## 🤖 MCP Specifics
 

@@ -26,14 +26,8 @@ import { registerAccountResourceTools } from "./account-resource.js";
 /**
  * Register all TRON-related tools with the MCP server
  *
- * SECURITY: Either TRON_PRIVATE_KEY or TRON_MNEMONIC environment variable must be set for write operations.
- * Private keys and mnemonics are never passed as tool arguments for security reasons.
- * Tools will use the configured wallet for all transactions.
- *
- * Configuration options:
- * - TRON_PRIVATE_KEY: Hex private key (with or without 0x prefix)
- * - TRON_MNEMONIC: BIP-39 mnemonic phrase (12 or 24 words)
- * - TRON_ACCOUNT_INDEX: Optional account index for HD wallet derivation (default: 0)
+ * Write operations require a configured wallet provider. Private keys and
+ * mnemonics are never passed as tool arguments for security reasons.
  *
  * @param server The MCP server instance
  * @param options Registration options (e.g., readOnly mode)
@@ -42,7 +36,7 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
   /**
    * Helper to register a tool with automatic wallet requirement detection.
    * If a tool is not read-only or explicitly requires a wallet, it will only be
-   * registered if a wallet is configured via environment variables.
+   * registered if a wallet is available.
    */
   const registerTool: RegisterToolFn = <T extends z.ZodRawShape>(
     name: string,
