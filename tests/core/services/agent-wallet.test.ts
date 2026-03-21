@@ -1,8 +1,28 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
-// Mocks
+// Shared mock fns
 // ---------------------------------------------------------------------------
+
+const mockResolveWalletProvider = vi.fn();
+const mockSignTransaction = vi.fn();
+const mockSignMessage = vi.fn();
+const mockSignTypedData = vi.fn();
+const mockGetActive = vi.fn();
+const mockGetActiveId = vi.fn();
+const mockSetActive = vi.fn();
+const mockListWallets = vi.fn();
+const mockGetWallet = vi.fn();
+const mockTrxSign = vi.fn();
+const mockSendRawTransaction = vi.fn();
+
+// ---------------------------------------------------------------------------
+// Module mocks
+// ---------------------------------------------------------------------------
+
+vi.mock("@bankofai/agent-wallet", () => ({
+  resolveWalletProvider: mockResolveWalletProvider,
+}));
 
 vi.mock("tronweb", () => {
   const MockTronWeb = {
@@ -15,72 +35,15 @@ vi.mock("tronweb", () => {
     utils: {
       crypto: {
         getAddressFromPrivateKey: vi.fn().mockReturnValue("TNewGeneratedAddress"),
-        getBufferFromHex: vi.fn((hex) => Buffer.from(hex, "hex")),
       },
     },
   };
+
   return {
     default: MockTronWeb,
     TronWeb: MockTronWeb,
   };
 });
-
-// ---------------------------------------------------------------------------
-// Shared mock fns (referenced by the mock factories below)
-// ---------------------------------------------------------------------------
-const mockSignTransaction = vi.fn();
-const mockSignMessage = vi.fn();
-const mockSignTypedData = vi.fn();
-const mockListWallets = vi.fn();
-const mockGetWallet = vi.fn();
-const mockGenerateKey = vi.fn();
-const mockSavePrivateKey = vi.fn();
-const mockTrxSign = vi.fn();
-const mockSendRawTransaction = vi.fn();
-const mockCryptoSignTx = vi.fn((_pk: string, tx: any) => ({
-  ...tx,
-  signature: ["static-raw-sig"],
-}));
-
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
-const mockGetActiveId = vi.fn();
-const mockGetActive = vi.fn();
-const mockSetActive = vi.fn();
-
-vi.mock("@bankofai/agent-wallet", () => ({
-  resolveWalletProvider: vi.fn((_options) => {
-    if (process.env.AGENT_WALLET_PASSWORD) {
-      return {
-        listWallets: mockListWallets,
-        getWallet: mockGetWallet,
-        getActiveId: mockGetActiveId,
-        getActiveWallet: mockGetActive,
-        setActive: mockSetActive,
-      };
-    }
-    if (process.env.AGENT_WALLET_PRIVATE_KEY || process.env.AGENT_WALLET_MNEMONIC) {
-      return {
-        getActiveWallet: mockGetActive,
-      };
-    }
-    throw new Error(
-      "resolveWalletProvider requires one of: AGENT_WALLET_PASSWORD, AGENT_WALLET_PRIVATE_KEY, or AGENT_WALLET_MNEMONIC",
-    );
-  }),
-  SecureKVStore: vi.fn().mockImplementation(function () {
-    return {
-      generateKey: mockGenerateKey,
-      savePrivateKey: mockSavePrivateKey,
-    };
-  }),
-  TronWallet: vi.fn().mockImplementation(function () {
-    return { getAddress: vi.fn().mockResolvedValue("TNewGeneratedAddress") };
-  }),
-  loadConfig: vi.fn(() => ({ wallets: {} })),
-  saveConfig: vi.fn(),
-}));
 
 vi.mock("../../../src/core/services/clients.js", () => ({
   getTronWeb: vi.fn(() => ({
@@ -88,388 +51,255 @@ vi.mock("../../../src/core/services/clients.js", () => ({
       sign: mockTrxSign,
       sendRawTransaction: mockSendRawTransaction,
     },
-    utils: { crypto: { signTransaction: mockCryptoSignTx } },
-  })),
-  getWallet: vi.fn(() => ({
-    trx: { sign: mockTrxSign },
   })),
 }));
 
 // ---------------------------------------------------------------------------
-// ENV helpers
+// Helpers
 // ---------------------------------------------------------------------------
-const ORIGINAL_ENV = { ...process.env };
 
-function setAgentWalletEnv() {
-  process.env.AGENT_WALLET_DIR = "/tmp/test-wallet";
-  process.env.AGENT_WALLET_PASSWORD = "test-pass";
-  delete process.env.TRON_PRIVATE_KEY;
-  delete process.env.TRON_MNEMONIC;
+type AW = typeof import("../../../src/core/services/agent-wallet.js");
+
+async function freshImport(): Promise<AW> {
+  vi.resetModules();
+  return (await import("../../../src/core/services/agent-wallet.js")) as AW;
 }
 
-function setStaticEnv() {
-  delete process.env.AGENT_WALLET_DIR;
-  delete process.env.AGENT_WALLET_PASSWORD;
-  process.env.TRON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001";
-}
-
-function clearAllWalletEnv() {
-  delete process.env.AGENT_WALLET_DIR;
-  delete process.env.AGENT_WALLET_PASSWORD;
-  delete process.env.TRON_PRIVATE_KEY;
-  delete process.env.TRON_MNEMONIC;
-}
-
-/** Create a full mock wallet with all methods. */
-function createMockWallet(address: string) {
+function createMockWallet(address: string, overrides: Record<string, unknown> = {}) {
   return {
     getAddress: vi.fn().mockResolvedValue(address),
     signTransaction: mockSignTransaction,
     signMessage: mockSignMessage,
     signTypedData: mockSignTypedData,
+    ...overrides,
+  };
+}
+
+function createProvider(overrides: Record<string, unknown> = {}) {
+  return {
+    getActiveWallet: mockGetActive,
+    getActiveId: mockGetActiveId,
+    setActive: mockSetActive,
+    listWallets: mockListWallets,
+    getWallet: mockGetWallet,
+    ...overrides,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Dynamic import helper — each call gets a fresh module with clean singletons
-// ---------------------------------------------------------------------------
-type AW = typeof import("../../../src/core/services/agent-wallet.js");
-
-async function freshImport(): Promise<AW> {
-  // Reset module registry so the import gives a fresh singleton set
-  vi.resetModules();
-  return (await import("../../../src/core/services/agent-wallet.js")) as AW;
-}
-
-// ===========================================================================
 // Tests
-// ===========================================================================
+// ---------------------------------------------------------------------------
 
 describe("agent-wallet service", () => {
   afterEach(() => {
-    process.env = { ...ORIGINAL_ENV };
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
-  // =========================================================================
-  // Mode detection — pure functions, no singleton state
-  // =========================================================================
-
   describe("getActiveWalletId", () => {
-    it("returns 'default' in static mode (no getActiveId function)", async () => {
-      setStaticEnv();
-      const { getActiveWalletId } = await freshImport();
-      expect(getActiveWalletId()).toBe("default");
-    });
-
-    it("returns null when no wallet env is configured (SDK throws)", async () => {
-      clearAllWalletEnv();
+    it("returns null when resolveWalletProvider throws", async () => {
+      mockResolveWalletProvider.mockImplementation(() => {
+        throw new Error("no wallet");
+      });
       const { getActiveWalletId } = await freshImport();
       expect(getActiveWalletId()).toBe(null);
+      expect(mockResolveWalletProvider).toHaveBeenCalledWith({ network: "tron" });
     });
 
-    it("returns active wallet ID from provider (e.g. Encrypted Storage)", async () => {
-      setAgentWalletEnv();
+    it("returns active wallet ID from provider", async () => {
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveId: mockGetActiveId }));
       mockGetActiveId.mockReturnValue("wallet-1");
       const { getActiveWalletId } = await freshImport();
       expect(getActiveWalletId()).toBe("wallet-1");
     });
 
-    it("returns null when provider has no active wallet (returns null from getActiveId)", async () => {
-      setAgentWalletEnv();
-      mockGetActiveId.mockReturnValue(null);
+    it("returns null when provider has no getActiveId", async () => {
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveId: undefined }));
       const { getActiveWalletId } = await freshImport();
       expect(getActiveWalletId()).toBe(null);
     });
   });
 
-  // =========================================================================
-  // getOwnerAddress
-  // =========================================================================
-
-  describe("getOwnerAddress", () => {
-    it("derives address from TRON_PRIVATE_KEY in static mode", async () => {
-      setStaticEnv();
-      mockGetActive.mockResolvedValue(createMockWallet("TStaticAddr123"));
-      const { getOwnerAddress } = await freshImport();
-      const address = await getOwnerAddress();
-      expect(address).toBe("TStaticAddr123");
+  describe("getActiveWallet", () => {
+    it("throws when no provider is available", async () => {
+      mockResolveWalletProvider.mockImplementation(() => {
+        throw new Error("no wallet");
+      });
+      const { getActiveWallet } = await freshImport();
+      await expect(getActiveWallet()).rejects.toThrow("Wallet not configured.");
     });
 
-    it("gets address from agent-wallet in agent-wallet mode", async () => {
-      setAgentWalletEnv();
-      mockGetActive.mockResolvedValue(createMockWallet("TAgentWalletAddr123"));
-      const { getOwnerAddress } = await freshImport();
+    it("returns the active wallet from provider", async () => {
+      const wallet = createMockWallet("TActiveAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      const { getActiveWallet } = await freshImport();
 
-      const address = await getOwnerAddress();
-      expect(address).toBe("TAgentWalletAddr123");
+      const result = await getActiveWallet();
+      expect(result).toBe(wallet);
+      expect(mockGetActive).toHaveBeenCalledTimes(1);
     });
   });
 
-  // =========================================================================
-  // selectWallet
-  // =========================================================================
+  describe("getOwnerAddress", () => {
+    it("returns the active wallet address", async () => {
+      const wallet = createMockWallet("TOwnerAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+
+      const { getOwnerAddress } = await freshImport();
+      await expect(getOwnerAddress()).resolves.toBe("TOwnerAddr");
+    });
+  });
 
   describe("selectWallet", () => {
-    it("throws in static mode", async () => {
-      setStaticEnv();
+    it("throws when provider does not support setActive", async () => {
+      mockResolveWalletProvider.mockReturnValue(createProvider({ setActive: undefined }));
       const { selectWallet } = await freshImport();
-      await expect(selectWallet("some-id")).rejects.toThrow(
-        "select_wallet is not available. Ensure AGENT_WALLET_PASSWORD is configured",
-      );
+      await expect(selectWallet("wallet-1")).rejects.toThrow("select_wallet is not available.");
     });
 
-    it("switches wallet and persists via provider.setActive", async () => {
-      setAgentWalletEnv();
-      mockGetWallet.mockResolvedValue(createMockWallet("TSwitchedAddr"));
-      const { selectWallet } = await freshImport();
+    it("switches wallet and returns its address", async () => {
+      const wallet = createMockWallet("TSwitchedAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getWallet: mockGetWallet }));
+      mockGetWallet.mockResolvedValue(wallet);
 
-      const result = await selectWallet("wallet-2");
-      expect(result.id).toBe("wallet-2");
-      expect(result.address).toBe("TSwitchedAddr");
+      const { selectWallet } = await freshImport();
+      await expect(selectWallet("wallet-2")).resolves.toEqual({
+        id: "wallet-2",
+        address: "TSwitchedAddr",
+      });
       expect(mockSetActive).toHaveBeenCalledWith("wallet-2");
     });
   });
 
-  // =========================================================================
-  // listAgentWallets
-  // =========================================================================
-
   describe("listAgentWallets", () => {
-    it("returns single default wallet in static mode", async () => {
-      setStaticEnv();
-      mockGetActive.mockResolvedValue(createMockWallet("TStaticAddr"));
+    it("returns a single wallet when provider has no listWallets", async () => {
+      const wallet = createMockWallet("TSingleAddr");
+      mockResolveWalletProvider.mockReturnValue(
+        createProvider({ getActiveWallet: mockGetActive, listWallets: undefined }),
+      );
+      mockGetActive.mockResolvedValue(wallet);
+
       const { listAgentWallets } = await freshImport();
-      const wallets = await listAgentWallets();
-      expect(wallets).toHaveLength(1);
-      expect(wallets[0].id).toBe("default");
-      expect(wallets[0].type).toBe("static");
-      expect(wallets[0].address).toBe("TStaticAddr");
+      await expect(listAgentWallets()).resolves.toEqual([
+        { id: "single", type: "single", address: "TSingleAddr" },
+      ]);
     });
 
-    it("returns all wallets from provider in agent-wallet mode", async () => {
-      setAgentWalletEnv();
+    it("returns all wallets from provider when listWallets exists", async () => {
+      const wallet1 = createMockWallet("TAddr1");
+      const wallet2 = createMockWallet("TAddr2");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ listWallets: mockListWallets }));
       mockListWallets.mockResolvedValue([
         { id: "w1", type: "tron_local", chain_id: "tron:mainnet" },
         { id: "w2", type: "tron_local", chain_id: "tron:nile" },
       ]);
-      mockGetWallet
-        .mockResolvedValueOnce(createMockWallet("TAddr1"))
-        .mockResolvedValueOnce(createMockWallet("TAddr2"));
+      mockGetWallet.mockResolvedValueOnce(wallet1).mockResolvedValueOnce(wallet2);
 
       const { listAgentWallets } = await freshImport();
-      const wallets = await listAgentWallets();
-      expect(wallets).toHaveLength(2);
-      expect(wallets[0]).toEqual({
-        id: "w1",
-        type: "tron_local",
-        address: "TAddr1",
-      });
-      expect(wallets[1]).toEqual({
-        id: "w2",
-        type: "tron_local",
-        address: "TAddr2",
-      });
+      await expect(listAgentWallets()).resolves.toEqual([
+        { id: "w1", type: "tron_local", address: "TAddr1" },
+        { id: "w2", type: "tron_local", address: "TAddr2" },
+      ]);
     });
   });
 
-  // =========================================================================
-  // signTransaction
-  // =========================================================================
-
-  describe("signTransaction", () => {
+  describe("signing", () => {
     const unsignedTx = { txID: "abc123", raw_data: {}, raw_data_hex: "0a0208" };
 
-    it("signs via agent-wallet SDK regardless of mode (unified)", async () => {
-      setStaticEnv();
-      const signedTx = { ...unsignedTx, signature: ["aw-sig"] };
-      mockSignTransaction.mockResolvedValue(JSON.stringify(signedTx));
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
+    it("signTransaction uses the active wallet", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      mockSignTransaction.mockResolvedValue(JSON.stringify({ ...unsignedTx, signature: ["sig"] }));
 
       const { signTransaction } = await freshImport();
-      const result = await signTransaction(unsignedTx);
-      expect(result).toEqual(signedTx);
-      expect(mockSignTransaction).toHaveBeenCalledWith(unsignedTx);
+      await expect(signTransaction(unsignedTx)).resolves.toEqual({
+        ...unsignedTx,
+        signature: ["sig"],
+      });
     });
 
-    it("signs via agent-wallet SDK in agent-wallet mode", async () => {
-      setAgentWalletEnv();
-      const signedTx = { ...unsignedTx, signature: ["aw-sig"] };
-      mockSignTransaction.mockResolvedValue(JSON.stringify(signedTx));
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
-
-      const { signTransaction } = await freshImport();
-      const result = await signTransaction(unsignedTx);
-      expect(result).toEqual(signedTx);
-      expect(mockSignTransaction).toHaveBeenCalledWith(unsignedTx);
-    });
-  });
-
-  // =========================================================================
-  // signTransactionRaw
-  // =========================================================================
-
-  describe("signTransactionRaw", () => {
-    const unsignedTx = { txID: "raw123", raw_data: {}, raw_data_hex: "0b0309" };
-
-    it("signs via agent-wallet SDK regardless of mode (unified)", async () => {
-      setStaticEnv();
-      const signedTx = { ...unsignedTx, signature: ["aw-raw-sig"] };
-      mockSignTransaction.mockResolvedValue(JSON.stringify(signedTx));
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
+    it("signTransactionRaw uses the active wallet", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      mockSignTransaction.mockResolvedValue(JSON.stringify({ ...unsignedTx, signature: ["sig"] }));
 
       const { signTransactionRaw } = await freshImport();
-      const result = await signTransactionRaw(unsignedTx, "nile");
-      expect(result).toEqual(signedTx);
+      await expect(signTransactionRaw(unsignedTx, "nile")).resolves.toEqual({
+        ...unsignedTx,
+        signature: ["sig"],
+      });
     });
 
-    it("signs via agent-wallet in agent-wallet mode", async () => {
-      setAgentWalletEnv();
-      const signedTx = { ...unsignedTx, signature: ["aw-raw-sig"] };
-      mockSignTransaction.mockResolvedValue(JSON.stringify(signedTx));
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
-
-      const { signTransactionRaw } = await freshImport();
-      const result = await signTransactionRaw(unsignedTx, "nile");
-      expect(result).toEqual(signedTx);
-    });
-  });
-
-  // =========================================================================
-  // buildSignBroadcast
-  // =========================================================================
-
-  describe("buildSignBroadcast", () => {
-    const unsignedTx = { txID: "bsb123", raw_data: {}, raw_data_hex: "0c0409" };
-
-    it("signs and broadcasts, returning txid on success", async () => {
-      setStaticEnv();
-      mockTrxSign.mockResolvedValue({ ...unsignedTx, signature: ["sig"] });
+    it("buildSignBroadcast signs and broadcasts", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      mockSignTransaction.mockResolvedValue(JSON.stringify({ ...unsignedTx, signature: ["sig"] }));
       mockSendRawTransaction.mockResolvedValue({ result: true, txid: "bcast-tx-id" });
 
       const { buildSignBroadcast } = await freshImport();
-      const txid = await buildSignBroadcast(unsignedTx, "nile");
-      expect(txid).toBe("bcast-tx-id");
+      await expect(buildSignBroadcast(unsignedTx, "nile")).resolves.toBe("bcast-tx-id");
     });
 
-    it("throws when broadcast fails", async () => {
-      setStaticEnv();
-      mockTrxSign.mockResolvedValue({ ...unsignedTx, signature: ["sig"] });
-      mockSendRawTransaction.mockResolvedValue({
-        result: false,
-        code: "BANDWITH_ERROR",
-        message: "not enough bandwidth",
-      });
+    it("buildSignBroadcast throws when broadcast fails", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      mockSignTransaction.mockResolvedValue(JSON.stringify({ ...unsignedTx, signature: ["sig"] }));
+      mockSendRawTransaction.mockResolvedValue({ result: false, message: "broadcast failed" });
 
       const { buildSignBroadcast } = await freshImport();
       await expect(buildSignBroadcast(unsignedTx, "nile")).rejects.toThrow("Broadcast failed");
     });
-  });
 
-  // =========================================================================
-  // signMessageWithWallet
-  // =========================================================================
-
-  describe("signMessageWithWallet", () => {
-    it("signs message in static mode via TronWeb (may throw due to no network)", async () => {
-      setStaticEnv();
-      const { signMessageWithWallet } = await freshImport();
-      try {
-        await signMessageWithWallet("hello");
-      } catch (error: any) {
-        // Expected — no real TronWeb, but should NOT throw "agent-wallet mode" error
-        expect(error.message).not.toContain("agent-wallet mode");
-      }
-    });
-
-    it("signs message via agent-wallet SDK in agent-wallet mode", async () => {
-      setAgentWalletEnv();
+    it("signMessageWithWallet uses the active wallet", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
       mockSignMessage.mockResolvedValue("0xsig");
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
 
       const { signMessageWithWallet } = await freshImport();
-      const sig = await signMessageWithWallet("hello");
-      expect(sig).toBe("0xsig");
+      await expect(signMessageWithWallet("hello")).resolves.toBe("0xsig");
       expect(mockSignMessage).toHaveBeenCalledWith(Buffer.from("hello", "utf-8"));
     });
-  });
 
-  // =========================================================================
-  // signTypedDataWithWallet
-  // =========================================================================
-
-  describe("signTypedDataWithWallet", () => {
-    const domain = { name: "Test" };
-    const types = { Test: [{ name: "value", type: "uint256" }] };
-    const value = { value: 1 };
-
-    it("throws in static mode when TronWeb lacks _signTypedData", async () => {
-      setStaticEnv();
-      const { signTypedDataWithWallet } = await freshImport();
-      try {
-        await signTypedDataWithWallet(domain, types, value);
-      } catch (error: any) {
-        expect(error.message).toBeDefined();
-      }
-    });
-
-    it("signs via agent-wallet in agent-wallet mode", async () => {
-      setAgentWalletEnv();
+    it("signTypedDataWithWallet uses the active wallet", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
       mockSignTypedData.mockResolvedValue("0xtyped-sig");
-      mockGetActive.mockResolvedValue(createMockWallet("TAddr"));
 
       const { signTypedDataWithWallet } = await freshImport();
-      const sig = await signTypedDataWithWallet(domain, types, value);
-      expect(sig).toBe("0xtyped-sig");
+      await expect(
+        signTypedDataWithWallet({ name: "Test" }, { Test: [] }, { value: 1 }),
+      ).resolves.toBe("0xtyped-sig");
     });
 
-    it("throws when wallet doesn't support signTypedData", async () => {
-      setAgentWalletEnv();
-      const walletWithoutEip712 = {
-        getAddress: vi.fn().mockResolvedValue("TAddr"),
-        signTransaction: mockSignTransaction,
-        signMessage: mockSignMessage,
-        // No signTypedData
-      };
+    it("throws when wallet does not support signTypedData", async () => {
+      const walletWithoutEip712 = createMockWallet("TAddr", {
+        signTypedData: undefined,
+      });
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
       mockGetActive.mockResolvedValue(walletWithoutEip712);
 
       const { signTypedDataWithWallet } = await freshImport();
-      await expect(signTypedDataWithWallet(domain, types, value)).rejects.toThrow(
-        "does not support signTypedData",
-      );
+      await expect(
+        signTypedDataWithWallet({ name: "Test" }, { Test: [] }, { value: 1 }),
+      ).rejects.toThrow("does not support signTypedData");
     });
   });
 
-  // =========================================================================
-  // generateAccount
-  // =========================================================================
-
-  describe("generateAccount", () => {
-    it("returns ephemeral account regardless of AGENT_WALLET_PASSWORD", async () => {
-      setStaticEnv();
+  describe("generateAccountKeypair", () => {
+    it("returns an ephemeral account", async () => {
       const { generateAccountKeypair } = await freshImport();
       const result = await generateAccountKeypair();
       expect(result.address).toBe("TNewGeneratedAddress");
       expect(result.privateKey).toBeDefined();
-    });
-
-    it("generates a keypair without storage even if password is set", async () => {
-      setAgentWalletEnv();
-
-      const { generateAccountKeypair } = await freshImport();
-      const result = await generateAccountKeypair();
-      expect(result.address).toBe("TNewGeneratedAddress");
-      expect(result.privateKey).toBeDefined();
-      expect(mockSavePrivateKey).not.toHaveBeenCalled();
-      expect(mockSetActive).not.toHaveBeenCalled();
-    });
-
-    it("does not trigger config refresh", async () => {
-      setAgentWalletEnv();
-
-      const { generateAccountKeypair } = await freshImport();
-      await generateAccountKeypair();
-      expect(mockSetActive).not.toHaveBeenCalled();
     });
   });
 });

@@ -77,19 +77,17 @@ This document provides essential information for AI agents working on this repos
 
 - **Sensitive Data**: NEVER hardcode private keys or mnemonics.
 - **Env Vars**:
-  - `AGENT_WALLET_PASSWORD`: Master password for agent-wallet encrypted keystore (recommended).
-  - `AGENT_WALLET_DIR`: Wallet directory (optional, default: `~/.agent-wallet`).
-  - `TRON_PRIVATE_KEY`: Hex key for write operations.
-  - `TRON_MNEMONIC`: 12/24 word phrase (alternative to key).
   - `TRONGRID_API_KEY`: Optional but recommended for Mainnet.
+  - This repository no longer reads or maps legacy `TRON_*` wallet variables.
+  - Wallet setup should follow `agent-wallet` file-backed configuration and the SDK-supported `AGENT_WALLET_*` settings.
 
 ## 🤖 MCP Specifics
 
 - **Tools**: Every tool must have a clear `description` and `inputSchema`.
-- **Conditional Registration**: Tools are conditionally registered based on whether a wallet is configured.
+- **Registration**: Tools are registered up front. `readOnly` only hides write tools at registration time; wallet availability is checked when the handler runs.
   - "Write" tools (state-changing) are automatically identified by `readOnlyHint: false`.
-  - Special "Read" tools that depend on wallet configuration (e.g., `get_wallet_address`) must specify `requiresWallet: true` in their annotations.
-- **Annotations**: Use `annotations` (`title`, `readOnlyHint`, `requiresWallet`, etc.) to help LLMs understand tool impact and to control registration logic.
+  - Tools that need a configured wallet should say so in `description` (and return a clear error at runtime if the wallet is missing).
+- **Annotations**: Use `annotations` (`title`, `readOnlyHint`, etc.) to help LLMs understand tool impact and runtime expectations.
 - **Serialization**: Use the `utils.formatJson` helper to handle `BigInt` when returning tool results.
 
 ---

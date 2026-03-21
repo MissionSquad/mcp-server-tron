@@ -1,14 +1,22 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import * as agentWallet from "../../src/core/services/agent-wallet.js";
 import { registerTRONTools } from "../../src/core/tools/index";
 
 const USDT_ADDRESS_NILE = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 const TEST_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const HAS_REAL_KEY = false;
 
-// Use real wallet if available (agent-wallet or static private key)
-const REAL_KEY = process.env.TRON_PRIVATE_KEY;
-const HAS_AGENT_WALLET = !!process.env.AGENT_WALLET_PASSWORD;
-const HAS_REAL_KEY = HAS_AGENT_WALLET || (!!REAL_KEY && REAL_KEY.length === 64);
+vi.mock("../../src/core/services/agent-wallet.js", async () => {
+  const actual = await vi.importActual<typeof agentWallet>(
+    "../../src/core/services/agent-wallet.js",
+  );
+  return {
+    ...actual,
+    getOwnerAddress: vi.fn().mockRejectedValue(new Error("Wallet not configured.")),
+    getActiveWalletId: vi.fn().mockReturnValue(null),
+  };
+});
 
 describe("TRON Tools Integration (Nile)", () => {
   let server: McpServer;
@@ -28,20 +36,7 @@ describe("TRON Tools Integration (Nile)", () => {
       return originalRegisterTool(name, schema, handler);
     };
 
-    // Use real wallet if available so write tool handlers can execute real transactions.
-    // If no wallet configured, set a dummy key just to register write tools.
-    const needsDummyKey = !HAS_REAL_KEY;
-    if (needsDummyKey) {
-      process.env.TRON_PRIVATE_KEY =
-        "0000000000000000000000000000000000000000000000000000000000000001";
-    }
-
     registerTRONTools(server);
-
-    // Restore env if we used a dummy key
-    if (needsDummyKey) {
-      delete process.env.TRON_PRIVATE_KEY;
-    }
   });
 
   it("get_balance should return real balance from Nile", async () => {
@@ -347,21 +342,13 @@ describe("TRON Tools Integration (Nile)", () => {
   // Wallet & convert (read-only)
   // ============================================================================
 
-  it("get_wallet_address should return configured address when wallet is set", async () => {
+  it("get_wallet_address should be registered without wallet config and fail at runtime", async () => {
     const tool = registeredTools.get("get_wallet_address");
     expect(tool).toBeDefined();
-    const result = await tool.handler({});
 
-    // With a dummy key (when TRON_PRIVATE_KEY not set), derivation may fail
-    if (result.isError && !HAS_REAL_KEY) {
-      expect(result.content[0].text).toContain("Error");
-      return;
-    }
-    expect(result.isError).toBeUndefined();
-    const content = JSON.parse(result.content[0].text);
-    expect(content.address).toBeDefined();
-    expect(content.base58).toBeDefined();
-    expect(content.hex).toBeDefined();
+    const result = await tool.handler({});
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("Wallet not configured.");
   });
 
   it("convert_address should convert Base58 to Hex on Nile", async () => {
@@ -377,9 +364,7 @@ describe("TRON Tools Integration (Nile)", () => {
     expect(content.isValid).toBe(true);
   });
 
-  it("staking tools (v2) should be registered and callable", async () => {
-    // These tests might fail if TRON_PRIVATE_KEY is not set or account has no balance,
-    // but the tool registration and handler calling should work.
+  it("staking tools (v2) should still be registered without wallet config", async () => {
     const freezeTool = registeredTools.get("freeze_balance_v2");
     expect(freezeTool).toBeDefined();
 
@@ -392,12 +377,12 @@ describe("TRON Tools Integration (Nile)", () => {
     expect(registeredTools.has("cancel_all_unfreeze_v2")).toBe(true);
   });
 
-  it("account resource (delegate) tools should be registered", () => {
+  it("account resource (delegate) tools should still be registered without wallet config", () => {
     expect(registeredTools.has("delegate_resource")).toBe(true);
     expect(registeredTools.has("undelegate_resource")).toBe(true);
   });
 
-  it("deploy_contract tool should be registered", async () => {
+  it("deploy_contract tool should still be registered without wallet config", async () => {
     const deployTool = registeredTools.get("deploy_contract");
     expect(deployTool).toBeDefined();
   });
@@ -480,7 +465,7 @@ describe("TRON Tools Integration (Nile)", () => {
     expect(content.address).toBe(TEST_ADDRESS);
   }, 20000);
 
-  it("account write tools should be registered", () => {
+  it("account write tools should still be registered without wallet config", () => {
     expect(registeredTools.has("create_account")).toBe(true);
     expect(registeredTools.has("update_account")).toBe(true);
     expect(registeredTools.has("account_permission_update")).toBe(true);
@@ -594,10 +579,9 @@ describe("TRON Tools Integration (Nile)", () => {
 
   // ==========================================================================
   // Governance & Proposal write tool integration tests (Nile)
-  // Requires TRON_PRIVATE_KEY in .env with a funded Nile testnet account.
   // ==========================================================================
 
-  it("governance write tools should all be registered", () => {
+  it("governance write tools should still be registered without wallet config", () => {
     const writeTools = [
       "create_witness",
       "update_witness",

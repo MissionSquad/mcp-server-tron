@@ -6,30 +6,16 @@
     "url": "https://github.com/BofAI/mcp-server-tron",
     "source": "github"
   },
-  "version": "1.1.5",
+  "version": "1.1.7",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@bankofai/mcp-server-tron",
-      "version": "1.1.5",
+      "version": "1.1.7",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
-        {
-          "name": "AGENT_WALLET_PASSWORD",
-          "description": "Master password for agent-wallet encrypted keystore (recommended for write operations)",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": true
-        },
-        {
-          "name": "TRON_PRIVATE_KEY",
-          "description": "Private key for the TRON wallet (legacy, optional)",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": true
-        },
         {
           "name": "TRONGRID_API_KEY",
           "description": "TronGrid API Key for higher rate limits (optional)",

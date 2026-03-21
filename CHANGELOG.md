@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.7] - 2026-03-21
+
+### Changed
+
+- Tools and prompts are now registered up front; wallet availability is checked at execution time.
+- Removed legacy `TRON_*` wallet mapping from this repository while keeping `agent-wallet`-managed wallet flows.
+- Updated docs and tests to match the new wallet semantics and no-wallet runtime behavior.
+
 ## [1.1.6] - 2026-03-18
 
 ### Changed

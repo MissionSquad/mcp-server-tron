@@ -2,15 +2,12 @@
  * Agent-wallet integration layer for mcp-server-tron.
  *
  * Provides a unified signing interface via agent-wallet SDK.
- * Supports:
- * - **Encrypted Storage mode**: Keys encrypted at rest (password-protected).
- * - **Static/Env mode**: Keys provided via environment variables.
  */
 
 import {
   type WalletProvider,
   resolveWalletProvider,
-  type BaseWallet,
+  type Wallet,
   type Eip712Capable,
 } from "@bankofai/agent-wallet";
 import { TronWeb } from "tronweb";
@@ -21,36 +18,14 @@ import { getTronWeb } from "./clients.js";
 // ---------------------------------------------------------------------------
 
 let provider: WalletProvider | null = null;
-let activeWallet: BaseWallet | null = null;
+let activeWallet: Wallet | null = null;
 let activeAddress: string | null = null;
 
 // ---------------------------------------------------------------------------
-// Provider initialization (lazy)
-// ---------------------------------------------------------------------------
-
-/**
- * Configure environment variables for backward compatibility.
- * Maps TRON_PRIVATE_KEY -> AGENT_WALLET_PRIVATE_KEY etc.
- */
-function ensureEnvMapping() {
-  if (process.env.TRON_PRIVATE_KEY && !process.env.AGENT_WALLET_PRIVATE_KEY) {
-    process.env.AGENT_WALLET_PRIVATE_KEY = process.env.TRON_PRIVATE_KEY;
-  }
-  if (process.env.TRON_MNEMONIC && !process.env.AGENT_WALLET_MNEMONIC) {
-    process.env.AGENT_WALLET_MNEMONIC = process.env.TRON_MNEMONIC;
-  }
-  if (process.env.TRON_MNEMONIC_ACCOUNT_INDEX && !process.env.AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX) {
-    process.env.AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX = process.env.TRON_MNEMONIC_ACCOUNT_INDEX;
-  }
-}
-
 function getProvider(): WalletProvider | null {
   if (provider) return provider;
 
-  ensureEnvMapping();
-
   try {
-    // resolveWalletProvider detects mode from AGENT_WALLET_* env vars
     provider = resolveWalletProvider({ network: "tron" });
     return provider;
   } catch (_e) {
@@ -66,14 +41,12 @@ function getProvider(): WalletProvider | null {
 /**
  * Get the currently active agent-wallet.
  */
-export async function getActiveWallet(): Promise<BaseWallet> {
+export async function getActiveWallet(): Promise<Wallet> {
   if (activeWallet) return activeWallet;
 
   const p = getProvider();
   if (!p) {
-    throw new Error(
-      "Wallet not configured. Please set AGENT_WALLET_PASSWORD, TRON_PRIVATE_KEY, TRON_MNEMONIC, or TRON_MNEMONIC_ACCOUNT_INDEX.",
-    );
+    throw new Error("Wallet not configured.");
   }
 
   activeWallet = await p.getActiveWallet();
@@ -86,21 +59,20 @@ export async function getActiveWallet(): Promise<BaseWallet> {
  */
 export async function getOwnerAddress(): Promise<string> {
   if (activeAddress) return activeAddress;
-  const wallet = await getActiveWallet();
-  activeAddress = await wallet.getAddress();
+  await getActiveWallet();
+  if (activeAddress == null) {
+    throw new Error("Failed to resolve active wallet address");
+  }
   return activeAddress;
 }
 
 /**
- * Switch the active wallet at runtime (Encrypted Storage mode only).
+ * Switch the active wallet at runtime when the provider supports multi-wallet selection.
  */
 export async function selectWallet(walletId: string): Promise<{ id: string; address: string }> {
   const p = getProvider();
   if (!p || typeof (p as any).setActive !== "function") {
-    throw new Error(
-      "select_wallet is not available. " +
-        "Ensure AGENT_WALLET_PASSWORD is configured for encrypted storage mode.",
-    );
+    throw new Error("select_wallet is not available.");
   }
 
   const lp = p as any;
@@ -126,21 +98,42 @@ export async function listAgentWallets(): Promise<
 
   if (typeof (p as any).listWallets === "function") {
     const lp = p as any;
+    // agent-wallet@2.3+: listWallets(): Array<[walletId, walletConfig, isActive]>
+    // agent-wallet@2.2 (and tests) may return Promise<Array<{id,type,...}>>.
     const wallets = await lp.listWallets();
     const result: Array<{ id: string; type: string; address: string }> = [];
 
     for (const w of wallets) {
-      const wallet = await lp.getWallet(w.id);
+      let walletId: string;
+      let walletType: string;
+
+      if (Array.isArray(w)) {
+        walletId = w[0] as string;
+        walletType = ((w[1] as { type?: string })?.type ?? "unknown") as string;
+      } else {
+        walletId = (w as { id?: string }).id ?? "";
+        walletType = ((w as { type?: string }).type ?? "unknown") as string;
+      }
+
+      if (!walletId) {
+        // Skip malformed entries so one bad import does not hide all wallets.
+        continue;
+      }
+
+      const wallet = await lp.getWallet(walletId);
       const address = await wallet.getAddress();
-      result.push({ id: w.id, type: w.type, address });
+      result.push({ id: walletId, type: walletType, address });
     }
     return result;
   }
 
-  // Static/Env mode
+  // Single-wallet mode
   const wallet = await p.getActiveWallet();
   const address = await wallet.getAddress();
-  return [{ id: "default", type: "static", address }];
+  if (address == null) {
+    return [];
+  }
+  return [{ id: "single", type: "single", address }];
 }
 
 /**
@@ -153,7 +146,7 @@ export function getActiveWalletId(): string | null {
   if (typeof (p as any).getActiveId === "function") {
     return (p as any).getActiveId();
   }
-  return "default";
+  return null;
 }
 
 // ---------------------------------------------------------------------------

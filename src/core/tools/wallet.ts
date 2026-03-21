@@ -12,7 +12,6 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
       annotations: {
         title: "Get Wallet Address",
         readOnlyHint: true,
-        requiresWallet: true,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
@@ -63,7 +62,6 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
       annotations: {
         title: "List Wallets",
         readOnlyHint: true,
-        requiresWallet: true,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
@@ -82,9 +80,11 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
                   activeWalletId: activeId,
                   wallets,
                   message:
-                    wallets.length === 1 && wallets[0].id === "default"
-                      ? "Using static wallet configured via environment variables."
-                      : `Found ${wallets.length} wallet(s). Use select_wallet to switch the active wallet.`,
+                    wallets.length === 0
+                      ? "No wallet is currently configured."
+                      : wallets.length === 1
+                        ? "Using the configured single wallet."
+                        : `Found ${wallets.length} wallet(s). Use select_wallet to switch the active wallet.`,
                 },
                 null,
                 2,
@@ -117,7 +117,6 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
       annotations: {
         title: "Select Wallet",
         readOnlyHint: false,
-        requiresWallet: true,
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,

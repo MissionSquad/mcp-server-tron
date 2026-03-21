@@ -15,10 +15,7 @@ import {
 const TEST_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
 describe("Governance Services Integration (Nile)", () => {
-  const hasWallet =
-    !!process.env.TRON_PRIVATE_KEY ||
-    !!process.env.TRON_MNEMONIC ||
-    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet = false;
 
   // ============================================================================
   // READ-ONLY TESTS

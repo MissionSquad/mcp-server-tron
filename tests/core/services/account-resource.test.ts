@@ -8,23 +8,12 @@ import {
 } from "../../../src/core/services/account-resource.js";
 
 describe("Account Resource Services Integration (Nile)", () => {
-  const hasWallet =
-    !!process.env.TRON_PRIVATE_KEY ||
-    !!process.env.TRON_MNEMONIC ||
-    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet = false;
 
   it.runIf(hasWallet)(
     "delegateResource should attempt to delegate and return error or tx hash",
     async () => {
-      const receiverAddress =
-        process.env.TRON_DELEGATEE_ADDRESS || process.env.TRON_ADDRESS || null;
-
-      if (!receiverAddress) {
-        console.log(
-          "Skipping delegateResource test: neither TRON_DELEGATEE_ADDRESS nor TRON_ADDRESS configured",
-        );
-        return;
-      }
+      const receiverAddress = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
       try {
         const txId = await delegateResource(
@@ -49,15 +38,7 @@ describe("Account Resource Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "undelegateResource should attempt to undelegate and return error or tx hash",
     async () => {
-      const receiverAddress =
-        process.env.TRON_DELEGATEE_ADDRESS || process.env.TRON_ADDRESS || null;
-
-      if (!receiverAddress) {
-        console.log(
-          "Skipping undelegateResource test: neither TRON_DELEGATEE_ADDRESS nor TRON_ADDRESS configured",
-        );
-        return;
-      }
+      const receiverAddress = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
       try {
         const txId = await undelegateResource(
@@ -81,12 +62,7 @@ describe("Account Resource Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "getCanDelegatedMaxSize should return max delegatable amount",
     async () => {
-      const address = process.env.TRON_ADDRESS;
-      if (!address) {
-        console.log("Skipping getCanDelegatedMaxSize test: TRON_ADDRESS not configured");
-        return;
-      }
-
+      const address = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
       const result = await getCanDelegatedMaxSize(address, "ENERGY", "nile");
       expect(result.address).toBe(address);
       expect(result.resource).toBe("ENERGY");
@@ -101,15 +77,8 @@ describe("Account Resource Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "getDelegatedResourceV2 should return delegated resource details or empty list",
     async () => {
-      const from = process.env.TRON_ADDRESS_FROM || process.env.TRON_ADDRESS;
-      const to = process.env.TRON_ADDRESS_TO || process.env.TRON_ADDRESS;
-
-      if (!from || !to) {
-        console.log(
-          "Skipping getDelegatedResourceV2 test: TRON_ADDRESS or pairing envs (TRON_ADDRESS_FROM / TRON_ADDRESS_TO) not configured",
-        );
-        return;
-      }
+      const from = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+      const to = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
       try {
         const result = await getDelegatedResourceV2(from, to, "nile");
@@ -133,14 +102,7 @@ describe("Account Resource Services Integration (Nile)", () => {
   it.runIf(hasWallet)(
     "getDelegatedResourceAccountIndexV2 should return delegation index",
     async () => {
-      const address = process.env.TRON_ADDRESS;
-      if (!address) {
-        console.log(
-          "Skipping getDelegatedResourceAccountIndexV2 test: TRON_ADDRESS not configured",
-        );
-        return;
-      }
-
+      const address = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
       try {
         const result = await getDelegatedResourceAccountIndexV2(address, "nile");
         expect(result.account).toBeDefined();

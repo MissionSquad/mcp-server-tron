@@ -36,9 +36,9 @@ Key capabilities:
 - **Smart Contracts**: Interact with any TRON smart contract (Read/Write).
 - **Tokens**: Transfer TRX and TRC20 tokens; check balances.
 - **Address Management**: Convert between Hex (0x...) and Base58 (T...) formats.
-- **Wallet Integration**: Agent-wallet (encrypted keystore), Private Key, and Mnemonic (BIP-39) wallets.
+- **Wallet Integration**: Agent-wallet-managed file-backed wallets.
 - **Multi-Network**: Seamless support for Mainnet, Nile, and Shasta.
-- **Dynamic Access Control**: Automatically hides write tools if no wallet is configured or if `--readonly` mode is active.
+- **Dynamic Access Control**: Write-capable tools stay registered; `--readonly` hides them, and wallet-dependent handlers fail at execution time if no wallet is available.
 
 ## Features
 
@@ -91,8 +91,7 @@ Key capabilities:
 
 ### Wallet & Security
 
-- **Agent Wallet (Recommended)**: Encrypted key storage via agent-wallet SDK — private keys never leave the keystore.
-- **Static Wallet**: Configure via `TRON_PRIVATE_KEY` or `TRON_MNEMONIC` environment variables.
+- **Agent Wallet**: File-backed wallet storage via `agent-wallet` SDK.
 - **HD Wallet**: Supports BIP-44 derivation path `m/44'/195'/0'/0/{index}`.
 - **Signing**: Sign arbitrary messages and transactions.
 
@@ -122,9 +121,7 @@ npm install
 
 ### Environment Variables
 
-**CRITICAL SECURITY NOTE**: For your security, **NEVER** save your private keys or mnemonics directly in the MCP configuration JSON files (like `claude_desktop_config.json` or `mcp.json`). Instead, set them as environment variables in your operating system or shell configuration.
-
-To enable write operations (transfers, contract calls) and ensure reliable API access, you should configure the following variables.
+**CRITICAL SECURITY NOTE**: For your security, **NEVER** save your private keys or mnemonics directly in the MCP configuration JSON files (like `claude_desktop_config.json` or `mcp.json`). For wallet setup, follow `agent-wallet`'s file-backed configuration and the SDK-supported `AGENT_WALLET_*` settings; use environment variables only for non-secret operational settings like `TRONGRID_API_KEY`.
 
 #### Network Configuration
 
@@ -137,37 +134,11 @@ To enable write operations (transfers, contract calls) and ensure reliable API a
 
 #### Wallet Configuration
 
-Choose **one** of the following modes. If none is configured, the server runs in **read-only mode**.
-
-**Option 1: Agent-Wallet Mode (Recommended)**
-
-Private keys are encrypted at rest and never exposed in environment variables.
+Wallets are managed through `agent-wallet` file-backed configuration. This repository no longer reads or maps legacy `TRON_PRIVATE_KEY` / `TRON_MNEMONIC` / `TRON_ACCOUNT_INDEX` wallet variables.
 
 > **Prerequisites**: Install and configure [agent-wallet](https://github.com/BofAI/agent-wallet/blob/main/doc/getting-started.md)
 
-```bash
-export AGENT_WALLET_PASSWORD="<YOUR_MASTER_PASSWORD>"
-export AGENT_WALLET_DIR="<YOUR_WALLET_DIR>"  # Optional, default: ~/.agent-wallet
-```
-
-> `AGENT_WALLET_PASSWORD` must match the master password used during `agent-wallet`. If not set, agent-wallet mode is disabled and the server falls back to static mode or read-only mode.
-
-**Option 2: Private Key**
-
-```bash
-export TRON_PRIVATE_KEY="<YOUR_PRIVATE_KEY_HERE>"
-```
-
-**Option 3: Mnemonic Phrase**
-
-```bash
-export TRON_MNEMONIC="<WORD1> <WORD2> ... <WORD12>"
-export TRON_ACCOUNT_INDEX="0"  # Optional, default: 0
-```
-
-> **Security Note**: Static modes expose keys in plaintext. **Only keep small amounts of funds** in these wallets — large balances carry a real **risk of theft**. Use Agent-Wallet Mode (Option 1) for any significant funds.
-
-> See [`.env.example`](.env.example) for a complete list of all supported environment variables.
+> See [`agent-wallet`](https://github.com/BofAI/agent-wallet) for wallet file formats, local setup, and the SDK-supported `AGENT_WALLET_*` settings.
 
 ### Server Configuration
 
@@ -228,14 +199,14 @@ npx vitest tests/core/services/contracts.test.ts       # Contract services
 npx vitest tests/core/services/account-resource.test.ts # Account resource services
 npx vitest tests/core/services/staking.test.ts         # Staking services
 
-# Integration tests (real Nile RPC; write tests require AGENT_WALLET_PASSWORD or TRON_PRIVATE_KEY)
+# Integration tests (real Nile RPC; write-operation coverage is skipped unless wallet support is explicitly enabled)
 npx vitest tests/core/tools_integration.test.ts        # Full tool flow on Nile
 npx vitest tests/core/services/multicall.test.ts       # Multicall integration
 npx vitest tests/core/services/services.test.ts        # Services integration
 ```
 
 - **Unit tests** use mocks and do not need network or wallet.
-- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Tests that broadcast transactions (e.g. `vote_witness`, `withdraw_balance`) run only when a wallet is configured (`AGENT_WALLET_PASSWORD` or `TRON_PRIVATE_KEY`) and are skipped otherwise.
+- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Wallet-dependent handlers are exercised as runtime failures by default, while write-success paths require an explicit wallet fixture or equivalent setup.
 
 ### Client Configuration
 
@@ -249,12 +220,6 @@ Runs the latest version directly from npm via stdio transport.
 claude mcp add mcp-server-tron -- npx -y @bankofai/mcp-server-tron
 ```
 
-With environment variables:
-
-```bash
-claude mcp add -e AGENT_WALLET_PASSWORD=xxx -e TRONGRID_API_KEY=xxx mcp-server-tron -- npx -y @bankofai/mcp-server-tron
-```
-
 **Cursor** (`.cursor/mcp.json`):
 
 ```json
@@ -264,8 +229,7 @@ claude mcp add -e AGENT_WALLET_PASSWORD=xxx -e TRONGRID_API_KEY=xxx mcp-server-t
       "command": "npx",
       "args": ["-y", "@bankofai/mcp-server-tron"],
       "env": {
-        "AGENT_WALLET_PASSWORD": "YOUR_PASSWORD (Or set in system env)",
-        "TRONGRID_API_KEY": "YOUR_KEY_HERE (Or set in system env)"
+        "TRONGRID_API_KEY": "YOUR_KEY_HERE"
       }
     }
   }
@@ -496,9 +460,8 @@ claude mcp add -transport http mcp-server-tron https://tron-mcp-server.bankofai.
 
 ## Security Considerations
 
-- **Private Keys & Mnemonics**: **NEVER** save your sensitive wallet information in plain text configuration files (like `mcp.json`). These files are often unencrypted and can be accidentally shared or committed to git. Use system environment variables which are more secure.
-- **Fund Safety (Static Mode)**: If you use `TRON_PRIVATE_KEY` or `TRON_MNEMONIC`, keys are stored in plaintext environment variables. This carries a **real risk of fund theft** — environment variables can be leaked via shell history, process listings, or log files. **Only keep a small amount of funds** in these wallets. For wallets holding any significant value, always use [Agent-Wallet Mode](#option-1-agent-wallet-mode-recommended).
-- **Shared Machines**: Be aware that on shared systems, environment variables might be visible to other users via `/proc` or system monitoring tools.
+- **Private Keys & Mnemonics**: Keep wallet material inside `agent-wallet` file-backed configuration instead of plain text MCP config files. This repository no longer maps legacy `TRON_*` wallet variables; use `AGENT_WALLET_*` only when following the `agent-wallet` SDK documentation.
+- **Shared Machines**: Be aware that plain environment variables can be visible to other users via `/proc` or system monitoring tools.
 - **Testnets**: Always test on Nile or Shasta before performing operations on Mainnet.
 - **Approvals**: Be cautious when approving token allowances via `write_contract`. Only approve what is necessary.
 

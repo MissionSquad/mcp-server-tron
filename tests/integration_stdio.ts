@@ -1,29 +1,36 @@
 import { spawn } from "child_process";
+import { mkdtempSync } from "fs";
 import { dirname, join } from "path";
+import { tmpdir } from "os";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(__dirname, "../src/index.ts");
+const noWalletHome = mkdtempSync(join(tmpdir(), "mcp-server-tron-stdio-home-"));
 
 async function runIntegrationTest() {
   const isReadOnlyMode = process.argv.includes("--readonly") || process.argv.includes("-r");
-  const noKey = process.argv.includes("--no-key");
-  console.log(
-    `🚀 Starting Integration Test via Stdio (Readonly: ${isReadOnlyMode}, NoKey: ${noKey})...`,
-  );
+  console.log(`🚀 Starting Integration Test via Stdio (Readonly: ${isReadOnlyMode})...`);
 
   const spawnArgs = ["tsx", serverPath];
   if (isReadOnlyMode) {
     spawnArgs.push("--readonly");
   }
 
-  const env = { ...process.env };
-  if (noKey) {
-    delete env.TRON_PRIVATE_KEY;
-    delete env.TRON_MNEMONIC;
-  } else {
-    env.TRON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001";
+  const env = { ...process.env } as NodeJS.ProcessEnv;
+  for (const key of [
+    "AGENT_WALLET_PASSWORD",
+    "AGENT_WALLET_DIR",
+    "AGENT_WALLET_PRIVATE_KEY",
+    "AGENT_WALLET_MNEMONIC",
+    "AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX",
+    "TRON_PRIVATE_KEY",
+    "TRON_MNEMONIC",
+    "TRON_ACCOUNT_INDEX",
+  ]) {
+    delete env[key];
   }
+  env.HOME = noWalletHome;
 
   const serverProcess = spawn("npx", spawnArgs, {
     env,
@@ -104,23 +111,44 @@ async function runIntegrationTest() {
     const toolNames = toolsRes.result.tools.map((t: any) => t.name);
     console.log(`✅ Found ${toolNames.length} tools:`, toolNames.join(", "));
 
-    if (isReadOnlyMode || noKey) {
+    if (isReadOnlyMode) {
       if (toolNames.includes("transfer_trx") || toolNames.includes("write_contract")) {
-        throw new Error(`Write tools found in ${noKey ? "NoKey" : "Readonly"} mode!`);
+        throw new Error("Write tools found in readonly mode!");
       }
-      console.log(`✅ Verified: Write tools are filtered in ${noKey ? "NoKey" : "Readonly"} mode.`);
+      console.log("✅ Verified: Write tools are filtered in readonly mode.");
     } else {
-      if (!toolNames.includes("get_balance") || !toolNames.includes("transfer_trx")) {
-        throw new Error("Missing expected tools!");
+      if (!toolNames.includes("transfer_trx") || !toolNames.includes("write_contract")) {
+        throw new Error("Write tools should still be registered without a wallet.");
+      }
+      if (!toolNames.includes("get_wallet_address")) {
+        throw new Error("Wallet tools should still be registered without a wallet.");
       }
     }
 
-    // 4. Call a Tool (get_supported_networks)
-    console.log("3️⃣  Calling get_supported_networks...");
-    const callPromise = waitForResponse(3);
+    // 4. Call wallet-aware tool and ensure runtime failure is returned without a wallet.
+    console.log("3️⃣  Calling get_wallet_address...");
+    const walletPromise = waitForResponse(3);
     send({
       jsonrpc: "2.0",
       id: 3,
+      method: "tools/call",
+      params: {
+        name: "get_wallet_address",
+        arguments: {},
+      },
+    });
+    const walletRes = await walletPromise;
+    if (!walletRes.result?.isError) {
+      throw new Error("Expected get_wallet_address to fail without a wallet.");
+    }
+    console.log("✅ Wallet tool failed as expected:", walletRes.result.content[0].text);
+
+    // 5. Call a Tool (get_supported_networks)
+    console.log("4️⃣  Calling get_supported_networks...");
+    const callPromise = waitForResponse(4);
+    send({
+      jsonrpc: "2.0",
+      id: 4,
       method: "tools/call",
       params: {
         name: "get_supported_networks",

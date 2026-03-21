@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../src/server/server.js", () => ({
   default: vi.fn().mockRejectedValue(new Error("init boom")),
   MCP_PROTOCOL_VERSION: "2025-11-25",
-  version: "1.1.6",
+  version: "1.1.7",
 }));
 
 describe("createHttpApp", () => {

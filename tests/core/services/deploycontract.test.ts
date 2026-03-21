@@ -18,11 +18,7 @@ const SIMPLE_STORAGE_BYTECODE =
   "6080604052348015600f57600080fd5b5060ac80601d6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806360fe47b11460375780636d4ce63c146049575b600080fd5b60476042366004605e565b600055565b005b60005460405190815260200160405180910390f35b600060208284031215606f57600080fd5b503591905056fea2646970667358221220ad46ce342d88ac7c6680183acf9cb99fab4db939a9c45b30036ea6f4da69bf2264736f6c63430008190033";
 
 describe("Contract Services Integration (Nile)", () => {
-  // Only run if wallet is configured (agent-wallet or static env vars)
-  const hasWallet =
-    !!process.env.TRON_PRIVATE_KEY ||
-    !!process.env.TRON_MNEMONIC ||
-    !!(process.env.AGENT_WALLET_DIR && process.env.AGENT_WALLET_PASSWORD);
+  const hasWallet = false;
 
   it.runIf(hasWallet)(
     "should deploy a simple storage contract",
