@@ -131,7 +131,7 @@ export async function listAgentWallets(): Promise<
   // Single-wallet mode
   const wallet = await p.getActiveWallet();
   const address = await wallet.getAddress();
-  return [{ id: "default", type: "single", address }];
+  return [{ id: "single", type: "single", address }];
 }
 
 /**
@@ -144,7 +144,7 @@ export function getActiveWalletId(): string | null {
   if (typeof (p as any).getActiveId === "function") {
     return (p as any).getActiveId();
   }
-  return "default";
+  return null;
 }
 
 // ---------------------------------------------------------------------------

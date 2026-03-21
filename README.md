@@ -38,7 +38,7 @@ Key capabilities:
 - **Address Management**: Convert between Hex (0x...) and Base58 (T...) formats.
 - **Wallet Integration**: Agent-wallet-managed file-backed wallets.
 - **Multi-Network**: Seamless support for Mainnet, Nile, and Shasta.
-- **Dynamic Access Control**: Automatically hides write tools if no wallet is configured or if `--readonly` mode is active.
+- **Dynamic Access Control**: Write-capable tools stay registered; `--readonly` hides them, and wallet-dependent handlers fail at execution time if no wallet is available.
 
 ## Features
 
@@ -206,7 +206,7 @@ npx vitest tests/core/services/services.test.ts        # Services integration
 ```
 
 - **Unit tests** use mocks and do not need network or wallet.
-- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Write-operation assertions are skipped by default in this branch unless wallet support is explicitly enabled.
+- **Integration tests** (`tools_integration.test.ts`) call Nile RPC; most cases are read-only. Wallet-dependent handlers are exercised as runtime failures by default, while write-success paths require an explicit wallet fixture or equivalent setup.
 
 ### Client Configuration
 

@@ -111,6 +111,7 @@ describe("TRON Tools Unit Tests", () => {
   let registeredTools: Map<string, any>;
 
   beforeEach(() => {
+    vi.resetAllMocks();
     server = new McpServer({
       name: "test-server",
       version: "1.0.0",
@@ -124,14 +125,14 @@ describe("TRON Tools Unit Tests", () => {
       return originalRegisterTool(name, schema, handler);
     };
 
-    (services.getActiveWalletId as any).mockReturnValue("default");
+    (services.getActiveWalletId as any).mockReturnValue(null);
+    (services.getOwnerAddress as any).mockResolvedValue("TDefaultSender");
     registerTRONTools(server);
-    vi.clearAllMocks();
   });
 
   describe("Registration", () => {
     it("should register at least all expected TRON tools", () => {
-      // already registered in beforeEach with isWalletConfigured=true
+      // already registered in beforeEach regardless of wallet availability
       const expectedTools = [
         "get_wallet_address",
         "list_wallets",
@@ -254,7 +255,7 @@ describe("TRON Tools Unit Tests", () => {
         return originalRegisterTool(name, schema, handler);
       };
 
-      (services.getActiveWalletId as any).mockReturnValue("default");
+      (services.getActiveWalletId as any).mockReturnValue(null);
       registerTRONTools(localServer, { readOnly: true });
 
       // Write tools should NOT be registered
@@ -283,10 +284,10 @@ describe("TRON Tools Unit Tests", () => {
       expect(registeredTools.has("approve_proposal")).toBe(false);
       expect(registeredTools.has("delete_proposal")).toBe(false);
 
-      // get_wallet_address IS a read tool (readOnlyHint: true)
-      // Since getActiveWalletId() is mocked to "default", it SHOULD be registered
-      // even in readonly mode because it doesn't perform write operations.
+      // get_wallet_address IS a read tool (readOnlyHint: true), so it should
+      // still be registered even in readonly mode.
       expect(registeredTools.has("get_wallet_address")).toBe(true);
+      expect(registeredTools.has("list_wallets")).toBe(true);
 
       // Read tools should STILL be registered
       expect(registeredTools.has("get_balance")).toBe(true);
@@ -302,7 +303,7 @@ describe("TRON Tools Unit Tests", () => {
       expect(registeredTools.has("get_proposal")).toBe(true);
     });
 
-    it("should NOT register wallet-dependent or write tools when no wallet is configured", () => {
+    it("should still register wallet-dependent and write tools when no wallet is configured", () => {
       registeredTools = new Map();
       const localServer = new McpServer({ name: "test", version: "1" });
       const originalRegisterTool = localServer.registerTool.bind(localServer);
@@ -314,39 +315,39 @@ describe("TRON Tools Unit Tests", () => {
       (services.getActiveWalletId as any).mockReturnValue(null);
       registerTRONTools(localServer);
 
-      // Write tools should NOT be registered (no wallet)
-      expect(registeredTools.has("transfer_trx")).toBe(false);
-      expect(registeredTools.has("transfer_trc20")).toBe(false);
-      expect(registeredTools.has("write_contract")).toBe(false);
-      expect(registeredTools.has("deploy_contract")).toBe(false);
-      expect(registeredTools.has("sign_message")).toBe(false);
-      expect(registeredTools.has("freeze_balance_v2")).toBe(false);
-      expect(registeredTools.has("unfreeze_balance_v2")).toBe(false);
-      expect(registeredTools.has("withdraw_expire_unfreeze")).toBe(false);
-      expect(registeredTools.has("cancel_all_unfreeze_v2")).toBe(false);
-      expect(registeredTools.has("delegate_resource")).toBe(false);
-      expect(registeredTools.has("undelegate_resource")).toBe(false);
-      expect(registeredTools.has("create_account")).toBe(false);
-      expect(registeredTools.has("update_account")).toBe(false);
-      expect(registeredTools.has("account_permission_update")).toBe(false);
-      expect(registeredTools.has("broadcast_transaction")).toBe(false);
-      expect(registeredTools.has("broadcast_hex")).toBe(false);
-      expect(registeredTools.has("create_transaction")).toBe(false);
+      // Write tools should still be registered without a wallet; execution fails later.
+      expect(registeredTools.has("transfer_trx")).toBe(true);
+      expect(registeredTools.has("transfer_trc20")).toBe(true);
+      expect(registeredTools.has("write_contract")).toBe(true);
+      expect(registeredTools.has("deploy_contract")).toBe(true);
+      expect(registeredTools.has("sign_message")).toBe(true);
+      expect(registeredTools.has("freeze_balance_v2")).toBe(true);
+      expect(registeredTools.has("unfreeze_balance_v2")).toBe(true);
+      expect(registeredTools.has("withdraw_expire_unfreeze")).toBe(true);
+      expect(registeredTools.has("cancel_all_unfreeze_v2")).toBe(true);
+      expect(registeredTools.has("delegate_resource")).toBe(true);
+      expect(registeredTools.has("undelegate_resource")).toBe(true);
+      expect(registeredTools.has("create_account")).toBe(true);
+      expect(registeredTools.has("update_account")).toBe(true);
+      expect(registeredTools.has("account_permission_update")).toBe(true);
+      expect(registeredTools.has("broadcast_transaction")).toBe(true);
+      expect(registeredTools.has("broadcast_hex")).toBe(true);
+      expect(registeredTools.has("create_transaction")).toBe(true);
 
-      // Governance/proposal write tools should NOT be registered (no wallet)
-      expect(registeredTools.has("create_witness")).toBe(false);
-      expect(registeredTools.has("update_witness")).toBe(false);
-      expect(registeredTools.has("vote_witness")).toBe(false);
-      expect(registeredTools.has("withdraw_balance")).toBe(false);
-      expect(registeredTools.has("update_brokerage")).toBe(false);
-      expect(registeredTools.has("create_proposal")).toBe(false);
-      expect(registeredTools.has("approve_proposal")).toBe(false);
-      expect(registeredTools.has("delete_proposal")).toBe(false);
+      // Governance/proposal write tools should still be registered without a wallet.
+      expect(registeredTools.has("create_witness")).toBe(true);
+      expect(registeredTools.has("update_witness")).toBe(true);
+      expect(registeredTools.has("vote_witness")).toBe(true);
+      expect(registeredTools.has("withdraw_balance")).toBe(true);
+      expect(registeredTools.has("update_brokerage")).toBe(true);
+      expect(registeredTools.has("create_proposal")).toBe(true);
+      expect(registeredTools.has("approve_proposal")).toBe(true);
+      expect(registeredTools.has("delete_proposal")).toBe(true);
 
-      // Wallet management tools have requiresWallet: true, should be hidden
-      expect(registeredTools.has("get_wallet_address")).toBe(false);
-      expect(registeredTools.has("list_wallets")).toBe(false);
-      expect(registeredTools.has("select_wallet")).toBe(false);
+      // Wallet management tools should also stay visible; they fail at runtime if no wallet exists.
+      expect(registeredTools.has("get_wallet_address")).toBe(true);
+      expect(registeredTools.has("list_wallets")).toBe(true);
+      expect(registeredTools.has("select_wallet")).toBe(true);
 
       // Pure read tools should STILL be registered
       expect(registeredTools.has("get_balance")).toBe(true);
@@ -405,17 +406,25 @@ describe("TRON Tools Unit Tests", () => {
       expect(content.address).toBe("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
     });
 
+    it("get_wallet_address should return a structured error when no wallet is configured", async () => {
+      (services.getOwnerAddress as any).mockRejectedValue(new Error("Wallet not configured."));
+
+      const result = await registeredTools.get("get_wallet_address").handler({});
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Wallet not configured.");
+    });
+
     it("list_wallets should return wallet list with active ID", async () => {
       (services.listAgentWallets as any).mockResolvedValue([
-        { id: "default", type: "env_configured", address: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb" },
+        { id: "wallet-1", type: "agent_wallet", address: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb" },
       ]);
-      (services.getActiveWalletId as any).mockReturnValue("default");
+      (services.getActiveWalletId as any).mockReturnValue("wallet-1");
 
       const result = await registeredTools.get("list_wallets").handler({});
       const content = JSON.parse(result.content[0].text);
-      expect(content.activeWalletId).toBe("default");
+      expect(content.activeWalletId).toBe("wallet-1");
       expect(content.wallets).toHaveLength(1);
-      expect(content.wallets[0].id).toBe("default");
+      expect(content.wallets[0].id).toBe("wallet-1");
       expect(content.wallets[0].address).toBe("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
     });
 
@@ -441,14 +450,14 @@ describe("TRON Tools Unit Tests", () => {
       expect(services.selectWallet).toHaveBeenCalledWith("wallet-2");
     });
 
-    it("select_wallet should return error in static mode", async () => {
+    it("select_wallet should return error when multi-wallet support is unavailable", async () => {
       (services.selectWallet as any).mockRejectedValue(
-        new Error("select_wallet is not available in static mode"),
+        new Error("select_wallet is not available."),
       );
 
       const result = await registeredTools.get("select_wallet").handler({ walletId: "some-id" });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("not available in static mode");
+      expect(result.content[0].text).toContain("select_wallet is not available.");
     });
 
     it("convert_address should handle hex to base58", async () => {
@@ -676,6 +685,7 @@ describe("TRON Tools Unit Tests", () => {
     });
 
     it("deploy_contract should call deployContract service", async () => {
+      (services.getOwnerAddress as any).mockResolvedValue("TDefaultSender");
       (services.deployContract as any).mockResolvedValue({
         txID: "tx123",
         contractAddress: "Taddr",

@@ -8,7 +8,6 @@ export type RegisterToolFn = <T extends z.ZodRawShape>(
     annotations?: {
       title?: string;
       readOnlyHint?: boolean;
-      requiresWallet?: boolean;
       destructiveHint?: boolean;
       idempotentHint?: boolean;
       openWorldHint?: boolean;

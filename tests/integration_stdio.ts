@@ -1,9 +1,12 @@
 import { spawn } from "child_process";
+import { mkdtempSync } from "fs";
 import { dirname, join } from "path";
+import { tmpdir } from "os";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(__dirname, "../src/index.ts");
+const noWalletHome = mkdtempSync(join(tmpdir(), "mcp-server-tron-stdio-home-"));
 
 async function runIntegrationTest() {
   const isReadOnlyMode = process.argv.includes("--readonly") || process.argv.includes("-r");
@@ -14,8 +17,23 @@ async function runIntegrationTest() {
     spawnArgs.push("--readonly");
   }
 
+  const env = { ...process.env } as NodeJS.ProcessEnv;
+  for (const key of [
+    "AGENT_WALLET_PASSWORD",
+    "AGENT_WALLET_DIR",
+    "AGENT_WALLET_PRIVATE_KEY",
+    "AGENT_WALLET_MNEMONIC",
+    "AGENT_WALLET_MNEMONIC_ACCOUNT_INDEX",
+    "TRON_PRIVATE_KEY",
+    "TRON_MNEMONIC",
+    "TRON_ACCOUNT_INDEX",
+  ]) {
+    delete env[key];
+  }
+  env.HOME = noWalletHome;
+
   const serverProcess = spawn("npx", spawnArgs, {
-    env: { ...process.env },
+    env,
     stdio: ["pipe", "pipe", "inherit"], // Pipe stdin/stdout, inherit stderr
   });
 
@@ -98,14 +116,39 @@ async function runIntegrationTest() {
         throw new Error("Write tools found in readonly mode!");
       }
       console.log("✅ Verified: Write tools are filtered in readonly mode.");
+    } else {
+      if (!toolNames.includes("transfer_trx") || !toolNames.includes("write_contract")) {
+        throw new Error("Write tools should still be registered without a wallet.");
+      }
+      if (!toolNames.includes("get_wallet_address")) {
+        throw new Error("Wallet tools should still be registered without a wallet.");
+      }
     }
 
-    // 4. Call a Tool (get_supported_networks)
-    console.log("3️⃣  Calling get_supported_networks...");
-    const callPromise = waitForResponse(3);
+    // 4. Call wallet-aware tool and ensure runtime failure is returned without a wallet.
+    console.log("3️⃣  Calling get_wallet_address...");
+    const walletPromise = waitForResponse(3);
     send({
       jsonrpc: "2.0",
       id: 3,
+      method: "tools/call",
+      params: {
+        name: "get_wallet_address",
+        arguments: {},
+      },
+    });
+    const walletRes = await walletPromise;
+    if (!walletRes.result?.isError) {
+      throw new Error("Expected get_wallet_address to fail without a wallet.");
+    }
+    console.log("✅ Wallet tool failed as expected:", walletRes.result.content[0].text);
+
+    // 5. Call a Tool (get_supported_networks)
+    console.log("4️⃣  Calling get_supported_networks...");
+    const callPromise = waitForResponse(4);
+    send({
+      jsonrpc: "2.0",
+      id: 4,
       method: "tools/call",
       params: {
         name: "get_supported_networks",

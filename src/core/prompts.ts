@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import * as services from "./services/index.js";
 
 /**
  * Register task-oriented prompts with the MCP server
@@ -19,9 +18,9 @@ import * as services from "./services/index.js";
  */
 export function registerTRONPrompts(server: McpServer, options: { readOnly?: boolean } = {}) {
   /**
-   * Helper to register a prompt with automatic wallet requirement detection.
-   * Prompts that guide write operations should only be registered if a wallet
-   * is configured and we are not in read-only mode.
+   * Helper to register a prompt with read-only gating.
+   * Prompts are registered up front; write guidance is hidden only in readonly
+   * mode and wallet availability is checked when the underlying tools run.
    */
   const registerPrompt = <T extends z.ZodRawShape>(
     name: string,
@@ -30,21 +29,15 @@ export function registerTRONPrompts(server: McpServer, options: { readOnly?: boo
       argsSchema?: T;
     },
     handler: (args: z.infer<z.ZodObject<T>>) => any,
-    extra: { requiresWallet?: boolean; isReadOnly?: boolean } = {},
+    extra: { isReadOnly?: boolean } = {},
   ) => {
     // Default to true: most prompts are informational and safe in readonly mode.
     // This differs from tools.ts where the default is false (write-capable) because
     // unregistered tools could mutate state, while prompts only guide the LLM.
     const isReadOnly = extra.isReadOnly !== false;
-    const walletNeeded = extra.requiresWallet === true;
 
     // 1. Skip if in read-only mode and the prompt is for write operations
     if (options.readOnly && !isReadOnly) {
-      return;
-    }
-
-    // 2. Skip if the prompt needs a wallet but none is configured
-    if (walletNeeded && services.getActiveWalletId() === null) {
       return;
     }
 
@@ -122,7 +115,7 @@ ${
         },
       ],
     }),
-    { requiresWallet: true, isReadOnly: false },
+    { isReadOnly: false },
   );
 
   registerPrompt(
@@ -252,7 +245,7 @@ After execution:
         ],
       };
     },
-    { requiresWallet: true, isReadOnly: false },
+    { isReadOnly: false },
   );
 
   registerPrompt(

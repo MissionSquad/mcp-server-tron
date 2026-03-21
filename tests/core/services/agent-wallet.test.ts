@@ -114,10 +114,10 @@ describe("agent-wallet service", () => {
       expect(getActiveWalletId()).toBe("wallet-1");
     });
 
-    it("returns default when provider has no getActiveId", async () => {
+    it("returns null when provider has no getActiveId", async () => {
       mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveId: undefined }));
       const { getActiveWalletId } = await freshImport();
-      expect(getActiveWalletId()).toBe("default");
+      expect(getActiveWalletId()).toBe(null);
     });
   });
 
@@ -184,7 +184,7 @@ describe("agent-wallet service", () => {
 
       const { listAgentWallets } = await freshImport();
       await expect(listAgentWallets()).resolves.toEqual([
-        { id: "default", type: "single", address: "TSingleAddr" },
+        { id: "single", type: "single", address: "TSingleAddr" },
       ]);
     });
 
@@ -244,6 +244,17 @@ describe("agent-wallet service", () => {
 
       const { buildSignBroadcast } = await freshImport();
       await expect(buildSignBroadcast(unsignedTx, "nile")).resolves.toBe("bcast-tx-id");
+    });
+
+    it("buildSignBroadcast throws when broadcast fails", async () => {
+      const wallet = createMockWallet("TAddr");
+      mockResolveWalletProvider.mockReturnValue(createProvider({ getActiveWallet: mockGetActive }));
+      mockGetActive.mockResolvedValue(wallet);
+      mockSignTransaction.mockResolvedValue(JSON.stringify({ ...unsignedTx, signature: ["sig"] }));
+      mockSendRawTransaction.mockResolvedValue({ result: false, message: "broadcast failed" });
+
+      const { buildSignBroadcast } = await freshImport();
+      await expect(buildSignBroadcast(unsignedTx, "nile")).rejects.toThrow("Broadcast failed");
     });
 
     it("signMessageWithWallet uses the active wallet", async () => {

@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import * as services from "../services/index.js";
 import type { RegisterToolFn } from "./types.js";
 import { registerWalletTools } from "./wallet.js";
 import { registerNetworkTools } from "./network.js";
@@ -26,17 +25,18 @@ import { registerAccountResourceTools } from "./account-resource.js";
 /**
  * Register all TRON-related tools with the MCP server
  *
- * Write operations require a configured wallet provider. Private keys and
- * mnemonics are never passed as tool arguments for security reasons.
+ * Write operations are registered up front and validate wallet availability
+ * when the tool handler runs. Private keys and mnemonics are never passed as
+ * tool arguments for security reasons.
  *
  * @param server The MCP server instance
  * @param options Registration options (e.g., readOnly mode)
  */
 export function registerTRONTools(server: McpServer, options: { readOnly?: boolean } = {}) {
   /**
-   * Helper to register a tool with automatic wallet requirement detection.
-   * If a tool is not read-only or explicitly requires a wallet, it will only be
-   * registered if a wallet is available.
+   * Helper to register a tool with read-only gating.
+   * Write tools (`readOnlyHint` not true) are omitted when `options.readOnly` is set;
+   * wallet availability is validated inside handlers when invoked.
    */
   const registerTool: RegisterToolFn = <T extends z.ZodRawShape>(
     name: string,
@@ -46,7 +46,6 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
       annotations?: {
         title?: string;
         readOnlyHint?: boolean;
-        requiresWallet?: boolean;
         destructiveHint?: boolean;
         idempotentHint?: boolean;
         openWorldHint?: boolean;
@@ -59,22 +58,10 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
     // for safety. This is stricter than prompts.ts (which defaults to read-only) because
     // tools can directly mutate blockchain state.
     const isReadOnly = annotations.readOnlyHint === true;
-    const walletNeeded = annotations.requiresWallet === true || !isReadOnly;
 
     // 1. Skip if in read-only mode and the tool is a write operation
     if (options.readOnly && !isReadOnly) {
       return;
-    }
-
-    // 2. Skip if the tool needs a wallet but none is configured
-    if (walletNeeded && services.getActiveWalletId() === null) {
-      return;
-    }
-
-    // Strip custom `requiresWallet` before passing to SDK (not a standard MCP annotation)
-    if (definition.annotations?.requiresWallet !== undefined) {
-      const { requiresWallet: _, ...standardAnnotations } = definition.annotations;
-      definition = { ...definition, annotations: standardAnnotations };
     }
 
     server.registerTool(name, definition as any, handler as any);
