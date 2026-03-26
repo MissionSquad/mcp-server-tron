@@ -126,7 +126,8 @@ npm install
 #### Network Configuration
 
 - `TRONGRID_API_KEY`: (Optional) Your TronGrid API key.
-  - **Why**: TRON mainnet RPCs have strict rate limits. Using an API key from [TronGrid](https://www.trongrid.io/) ensures reliable performance and higher throughput.
+  - **Why**: TRON mainnet RPCs have strict rate limits. When `TRONGRID_API_KEY` is set (and non-empty), the server uses `https://api.trongrid.io` as the default RPC hosts.
+  - **Fallback**: When `TRONGRID_API_KEY` is not set, the server uses `https://hptg.bankofai.io` as the default RPC hosts for `mainnet`.
   - **Usage**:
     ```bash
     export TRONGRID_API_KEY="<YOUR_TRONGRID_API_KEY_HERE>"

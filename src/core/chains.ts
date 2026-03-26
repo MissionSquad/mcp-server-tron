@@ -14,6 +14,13 @@ export interface NetworkConfig {
   explorer: string;
 }
 
+const BOA_MAINNET_HOST = "https://hptg.bankofai.io";
+
+function isTronGridApiKeyConfigured(): boolean {
+  const apiKey = process.env.TRONGRID_API_KEY;
+  return typeof apiKey === "string" && apiKey.length > 0;
+}
+
 export const NETWORKS: Record<TronNetwork, NetworkConfig> = {
   [TronNetwork.Mainnet]: {
     name: "Mainnet",
@@ -45,7 +52,16 @@ export function getNetworkConfig(network: string = DEFAULT_NETWORK): NetworkConf
 
   // Direct match
   if (Object.values(TronNetwork).includes(normalizedNetwork as TronNetwork)) {
-    return NETWORKS[normalizedNetwork as TronNetwork];
+    const resolved = normalizedNetwork as TronNetwork;
+    if (resolved === TronNetwork.Mainnet && !isTronGridApiKeyConfigured()) {
+      return {
+        ...NETWORKS[TronNetwork.Mainnet],
+        fullNode: BOA_MAINNET_HOST,
+        solidityNode: BOA_MAINNET_HOST,
+        eventServer: BOA_MAINNET_HOST,
+      };
+    }
+    return NETWORKS[resolved];
   }
 
   // Aliases
@@ -54,6 +70,14 @@ export function getNetworkConfig(network: string = DEFAULT_NETWORK): NetworkConf
     normalizedNetwork === "trx" ||
     normalizedNetwork === "mainnet"
   ) {
+    if (!isTronGridApiKeyConfigured()) {
+      return {
+        ...NETWORKS[TronNetwork.Mainnet],
+        fullNode: BOA_MAINNET_HOST,
+        solidityNode: BOA_MAINNET_HOST,
+        eventServer: BOA_MAINNET_HOST,
+      };
+    }
     return NETWORKS[TronNetwork.Mainnet];
   }
   if (normalizedNetwork === "testnet") {
