@@ -9,6 +9,10 @@ vi.mock("../../src/server/server.js", () => ({
 describe("createHttpApp", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    process.env.MCP_PUBLIC_ORIGIN = "https://tron-mcp.example.com";
+    process.env.JWT_SECRET = "test-jwt-secret";
+    process.env.MCP_TENANT_MASTER_SECRET = "test-tenant-master-secret";
+    process.env.MCP_DATA_DIR = "/tmp/mcp-server-tron-test";
   });
 
   it("returns 500 when stateless initialization fails", async () => {

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { requireTenantAuthContext } from "../../tenant/context.js";
 import type { RegisterToolFn } from "./types.js";
 import { registerWalletTools } from "./wallet.js";
 import { registerNetworkTools } from "./network.js";
@@ -32,7 +33,10 @@ import { registerAccountResourceTools } from "./account-resource.js";
  * @param server The MCP server instance
  * @param options Registration options (e.g., readOnly mode)
  */
-export function registerTRONTools(server: McpServer, options: { readOnly?: boolean } = {}) {
+export function registerTRONTools(
+  server: McpServer,
+  options: { readOnly?: boolean; transport?: "stdio" | "http" } = {},
+) {
   /**
    * Helper to register a tool with read-only gating.
    * Write tools (`readOnlyHint` not true) are omitted when `options.readOnly` is set;
@@ -43,6 +47,7 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
     definition: {
       inputSchema?: T;
       description?: string;
+      legacyOnly?: boolean;
       annotations?: {
         title?: string;
         readOnlyHint?: boolean;
@@ -64,7 +69,30 @@ export function registerTRONTools(server: McpServer, options: { readOnly?: boole
       return;
     }
 
-    server.registerTool(name, definition as any, handler as any);
+    if (options.transport === "http" && definition.legacyOnly === true) {
+      return;
+    }
+
+    const wrappedHandler = async (args: z.infer<z.ZodObject<T>>) => {
+      try {
+        if (options.transport === "http") {
+          requireTenantAuthContext();
+        }
+        return await handler(args);
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: error instanceof Error ? error.message : String(error),
+            },
+          ],
+          isError: true,
+        };
+      }
+    };
+
+    server.registerTool(name, definition as any, wrappedHandler as any);
   };
 
   registerWalletTools(registerTool);

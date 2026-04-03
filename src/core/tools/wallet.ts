@@ -111,6 +111,7 @@ export function registerWalletTools(registerTool: RegisterToolFn) {
     {
       description:
         "Switch the active wallet at runtime. Use list_wallets to see available wallet IDs. Only available in Encrypted Storage mode.",
+      legacyOnly: true,
       inputSchema: {
         walletId: z.string().describe("The wallet ID to switch to"),
       },

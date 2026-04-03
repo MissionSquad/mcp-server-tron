@@ -22,6 +22,7 @@ COPY --from=builder /app/build ./build
 COPY docker-start.sh ./docker-start.sh
 
 RUN mkdir -p /app/logs \
+  && mkdir -p /app/data \
   && chown -R ec2-user:ec2-user /app \
   && chmod +x /app/docker-start.sh
 
@@ -31,6 +32,7 @@ ENV NODE_ENV=production
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=3001
 ENV MCP_LOG_DIR=/app/logs
+ENV MCP_DATA_DIR=/app/data
 
 EXPOSE 3001
 

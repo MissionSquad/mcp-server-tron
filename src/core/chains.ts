@@ -53,15 +53,7 @@ export function getNetworkConfig(network: string = DEFAULT_NETWORK): NetworkConf
   // Direct match
   if (Object.values(TronNetwork).includes(normalizedNetwork as TronNetwork)) {
     const resolved = normalizedNetwork as TronNetwork;
-    if (resolved === TronNetwork.Mainnet && !isTronGridApiKeyConfigured()) {
-      return {
-        ...NETWORKS[TronNetwork.Mainnet],
-        fullNode: BOA_MAINNET_HOST,
-        solidityNode: BOA_MAINNET_HOST,
-        eventServer: BOA_MAINNET_HOST,
-      };
-    }
-    return NETWORKS[resolved];
+    return applyNetworkOverrides(resolved, getBaseNetworkConfig(resolved));
   }
 
   // Aliases
@@ -70,18 +62,10 @@ export function getNetworkConfig(network: string = DEFAULT_NETWORK): NetworkConf
     normalizedNetwork === "trx" ||
     normalizedNetwork === "mainnet"
   ) {
-    if (!isTronGridApiKeyConfigured()) {
-      return {
-        ...NETWORKS[TronNetwork.Mainnet],
-        fullNode: BOA_MAINNET_HOST,
-        solidityNode: BOA_MAINNET_HOST,
-        eventServer: BOA_MAINNET_HOST,
-      };
-    }
-    return NETWORKS[TronNetwork.Mainnet];
+    return applyNetworkOverrides(TronNetwork.Mainnet, getBaseNetworkConfig(TronNetwork.Mainnet));
   }
   if (normalizedNetwork === "testnet") {
-    return NETWORKS[TronNetwork.Nile]; // Default testnet to Nile
+    return applyNetworkOverrides(TronNetwork.Nile, NETWORKS[TronNetwork.Nile]); // Default testnet to Nile
   }
 
   throw new Error(`Unsupported network: ${network}`);
@@ -93,4 +77,34 @@ export function getSupportedNetworks(): string[] {
 
 export function getRpcUrl(network: string = DEFAULT_NETWORK): string {
   return getNetworkConfig(network).fullNode;
+}
+
+function getBaseNetworkConfig(network: TronNetwork): NetworkConfig {
+  if (network === TronNetwork.Mainnet && !isTronGridApiKeyConfigured()) {
+    return {
+      ...NETWORKS[TronNetwork.Mainnet],
+      fullNode: BOA_MAINNET_HOST,
+      solidityNode: BOA_MAINNET_HOST,
+      eventServer: BOA_MAINNET_HOST,
+    };
+  }
+  return NETWORKS[network];
+}
+
+function applyNetworkOverrides(network: TronNetwork, config: NetworkConfig): NetworkConfig {
+  const prefix = `TRON_${network.toUpperCase()}_`;
+  const fullNode = process.env[`${prefix}FULL_NODE`];
+  const solidityNode = process.env[`${prefix}SOLIDITY_NODE`];
+  const eventServer = process.env[`${prefix}EVENT_SERVER`];
+
+  if (!fullNode && !solidityNode && !eventServer) {
+    return config;
+  }
+
+  return {
+    ...config,
+    fullNode: fullNode || config.fullNode,
+    solidityNode: solidityNode || config.solidityNode,
+    eventServer: eventServer || config.eventServer,
+  };
 }

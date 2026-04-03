@@ -87,6 +87,7 @@ export function registerAccountTools(registerTool: RegisterToolFn) {
     {
       description:
         "Generate a new TRON account offline (keypair generation). Returns privateKey, publicKey, and address. No network interaction needed.",
+      legacyOnly: true,
       inputSchema: {},
       annotations: {
         title: "Generate Account",

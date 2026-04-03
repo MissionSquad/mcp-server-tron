@@ -5,7 +5,7 @@ import startServer from "./server/server.js";
 async function main() {
   try {
     const isReadOnly = process.argv.includes("--readonly") || process.argv.includes("-r");
-    const server = await startServer({ readOnly: isReadOnly });
+    const server = await startServer({ readOnly: isReadOnly, transport: "stdio" });
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error(`mcp-server-tron running on stdio${isReadOnly ? " (readonly)" : ""}`);
