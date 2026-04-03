@@ -20,7 +20,7 @@ const mockSendRawTransaction = vi.fn();
 // Module mocks
 // ---------------------------------------------------------------------------
 
-vi.mock("@bankofai/agent-wallet", () => ({
+vi.mock("@missionsquad/agent-wallet", () => ({
   resolveWalletProvider: mockResolveWalletProvider,
 }));
 

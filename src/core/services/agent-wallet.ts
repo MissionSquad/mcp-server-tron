@@ -5,13 +5,16 @@
  */
 
 import {
+  TenantWalletProvider,
   type WalletProvider,
   resolveWalletProvider,
   type Wallet,
   type Eip712Capable,
-} from "@bankofai/agent-wallet";
+} from "@missionsquad/agent-wallet";
 import { TronWeb } from "tronweb";
 import { getTronWeb } from "./clients.js";
+import { getRequestContext } from "../../tenant/context.js";
+import type { TenantRecord } from "../../tenant/types.js";
 
 // ---------------------------------------------------------------------------
 // Module-level singleton state
@@ -20,6 +23,17 @@ import { getTronWeb } from "./clients.js";
 let provider: WalletProvider | null = null;
 let activeWallet: Wallet | null = null;
 let activeAddress: string | null = null;
+
+type WalletRuntime =
+  | {
+      mode: "tenant";
+      tenant: TenantRecord;
+      provider: TenantWalletProvider;
+    }
+  | {
+      mode: "legacy";
+      provider: WalletProvider | null;
+    };
 
 // ---------------------------------------------------------------------------
 function getProvider(): WalletProvider | null {
@@ -34,6 +48,22 @@ function getProvider(): WalletProvider | null {
   }
 }
 
+function getRuntime(): WalletRuntime {
+  const context = getRequestContext();
+  if (context?.auth) {
+    return {
+      mode: "tenant",
+      tenant: context.auth.tenant,
+      provider: context.tenantManager.getTenantWalletProvider(context.auth.tenant.tenantId),
+    };
+  }
+
+  return {
+    mode: "legacy",
+    provider: getProvider(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Active wallet management
 // ---------------------------------------------------------------------------
@@ -42,14 +72,17 @@ function getProvider(): WalletProvider | null {
  * Get the currently active agent-wallet.
  */
 export async function getActiveWallet(): Promise<Wallet> {
-  if (activeWallet) return activeWallet;
+  const runtime = getRuntime();
+  if (runtime.mode === "tenant") {
+    return runtime.provider.getPrimaryWallet();
+  }
 
-  const p = getProvider();
-  if (!p) {
+  if (activeWallet) return activeWallet;
+  if (!runtime.provider) {
     throw new Error("Wallet not configured.");
   }
 
-  activeWallet = await p.getActiveWallet();
+  activeWallet = await runtime.provider.getActiveWallet();
   activeAddress = await activeWallet.getAddress();
   return activeWallet;
 }
@@ -58,6 +91,11 @@ export async function getActiveWallet(): Promise<Wallet> {
  * Get the address of the active wallet.
  */
 export async function getOwnerAddress(): Promise<string> {
+  const runtime = getRuntime();
+  if (runtime.mode === "tenant") {
+    return runtime.tenant.walletAddressBase58;
+  }
+
   if (activeAddress) return activeAddress;
   await getActiveWallet();
   if (activeAddress == null) {
@@ -70,7 +108,12 @@ export async function getOwnerAddress(): Promise<string> {
  * Switch the active wallet at runtime when the provider supports multi-wallet selection.
  */
 export async function selectWallet(walletId: string): Promise<{ id: string; address: string }> {
-  const p = getProvider();
+  const runtime = getRuntime();
+  if (runtime.mode === "tenant") {
+    throw new Error("select_wallet is not available in HTTP tenant mode.");
+  }
+
+  const p = runtime.provider;
   if (!p || typeof (p as any).setActive !== "function") {
     throw new Error("select_wallet is not available.");
   }
@@ -93,7 +136,18 @@ export async function selectWallet(walletId: string): Promise<{ id: string; addr
 export async function listAgentWallets(): Promise<
   Array<{ id: string; type: string; address: string }>
 > {
-  const p = getProvider();
+  const runtime = getRuntime();
+  if (runtime.mode === "tenant") {
+    return [
+      {
+        id: "primary",
+        type: "local_secure",
+        address: runtime.tenant.walletAddressBase58,
+      },
+    ];
+  }
+
+  const p = runtime.provider;
   if (!p) return [];
 
   if (typeof (p as any).listWallets === "function") {
@@ -140,7 +194,12 @@ export async function listAgentWallets(): Promise<
  * Get the currently active wallet ID.
  */
 export function getActiveWalletId(): string | null {
-  const p = getProvider();
+  const runtime = getRuntime();
+  if (runtime.mode === "tenant") {
+    return "primary";
+  }
+
+  const p = runtime.provider;
   if (!p) return null;
 
   if (typeof (p as any).getActiveId === "function") {

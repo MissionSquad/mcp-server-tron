@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-04-02
+
+### Added
+
+- OAuth 2.0 Authorization Code + PKCE server flow for HTTP tenant mode, including:
+  - authorization server metadata
+  - protected resource metadata
+  - wallet-auth authorization page
+  - auth-code exchange and refresh-token rotation
+- Multi-tenant wallet persistence and request-context tenant resolution for HTTP MCP execution.
+- OAuth bearer-token middleware for `/mcp`.
+- RPC endpoint override support via environment variables for mainnet, Nile, and Shasta.
+- New GitHub Actions workflow split:
+  - PR build verification
+  - npm publish on `main`
+  - GHCR Docker publish on `main`
+
+### Changed
+
+- Switched package identity to `@missionsquad/mcp-server-tron`.
+- Updated the wallet SDK dependency to the published `@missionsquad/agent-wallet`.
+- Updated repository metadata, server manifest metadata, and npm install examples to MissionSquad ownership.
+- Updated HTTP app wiring so OAuth routes and tenant auth are available in the Streamable HTTP server.
+- Updated Docker startup so readonly mode is optional instead of forced, and added `/app/data` as the default tenant data directory.
+- Kept legacy `stdio` wallet behavior while making HTTP mode tenant-aware and OAuth-protected.
+
 ## [1.1.7] - 2026-03-21
 
 ### Changed

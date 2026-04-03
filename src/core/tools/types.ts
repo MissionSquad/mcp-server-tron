@@ -5,6 +5,7 @@ export type RegisterToolFn = <T extends z.ZodRawShape>(
   definition: {
     inputSchema?: T;
     description?: string;
+    legacyOnly?: boolean;
     annotations?: {
       title?: string;
       readOnlyHint?: boolean;

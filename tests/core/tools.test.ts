@@ -396,6 +396,39 @@ describe("TRON Tools Unit Tests", () => {
       expect(registeredTools.has("get_contract_internal_transactions")).toBe(true);
       expect(registeredTools.has("get_trc20_token_holders")).toBe(true);
     });
+
+    it("should omit legacy-only tools in HTTP mode", () => {
+      registeredTools = new Map();
+      const localServer = new McpServer({ name: "test", version: "1" });
+      const originalRegisterTool = localServer.registerTool.bind(localServer);
+      localServer.registerTool = (name: string, schema: any, handler: any) => {
+        registeredTools.set(name, { schema, handler });
+        return originalRegisterTool(name, schema, handler);
+      };
+
+      registerTRONTools(localServer, { transport: "http" });
+
+      expect(registeredTools.has("select_wallet")).toBe(false);
+      expect(registeredTools.has("generate_account")).toBe(false);
+      expect(registeredTools.has("get_wallet_address")).toBe(true);
+      expect(registeredTools.has("get_balance")).toBe(true);
+    });
+
+    it("should require tenant auth for HTTP mode tool execution", async () => {
+      registeredTools = new Map();
+      const localServer = new McpServer({ name: "test", version: "1" });
+      const originalRegisterTool = localServer.registerTool.bind(localServer);
+      localServer.registerTool = (name: string, schema: any, handler: any) => {
+        registeredTools.set(name, { schema, handler });
+        return originalRegisterTool(name, schema, handler);
+      };
+
+      registerTRONTools(localServer, { transport: "http" });
+
+      const result = await registeredTools.get("get_wallet_address").handler({});
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Authentication required");
+    });
   });
 
   describe("Wallet & Address Tools", () => {

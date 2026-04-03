@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.BofAI/mcp-server-tron",
+  "name": "io.github.MissionSquad/mcp-server-tron",
   "description": "MCP server for TRON blockchain. Supports TRX/TRC20 transfers, smart contracts, and AI prompts.",
   "repository": {
-    "url": "https://github.com/BofAI/mcp-server-tron",
+    "url": "https://github.com/MissionSquad/mcp-server-tron",
     "source": "github"
   },
-  "version": "1.1.7",
+  "version": "1.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@bankofai/mcp-server-tron",
-      "version": "1.1.7",
+      "identifier": "@missionsquad/mcp-server-tron",
+      "version": "1.0.0",
       "transport": {
         "type": "stdio"
       },

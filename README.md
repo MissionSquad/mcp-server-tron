@@ -110,7 +110,7 @@ Key capabilities:
 
 ```bash
 # Clone the repository
-git clone https://github.com/BofAI/mcp-server-tron.git
+git clone https://github.com/MissionSquad/mcp-server-tron.git
 cd mcp-server-tron
 
 # Install dependencies
@@ -121,7 +121,18 @@ npm install
 
 ### Environment Variables
 
-**CRITICAL SECURITY NOTE**: For your security, **NEVER** save your private keys or mnemonics directly in the MCP configuration JSON files (like `claude_desktop_config.json` or `mcp.json`). For wallet setup, follow `agent-wallet`'s file-backed configuration and the SDK-supported `AGENT_WALLET_*` settings; use environment variables only for non-secret operational settings like `TRONGRID_API_KEY`.
+**CRITICAL SECURITY NOTE**: For your security, **NEVER** save your private keys or mnemonics directly in MCP client configuration JSON files. In HTTP tenant mode, this server is now an OAuth2 authorization server and issues bearer access tokens after browser-wallet proof. Managed tenant wallets are stored server-side using `agent-wallet`.
+
+#### OAuth / HTTP Tenant Configuration
+
+- `MCP_PUBLIC_ORIGIN`: Required in HTTP mode. Public origin used as OAuth issuer and resource base.
+- `JWT_SECRET`: Required in HTTP mode. Signs OAuth access tokens.
+- `MCP_TENANT_MASTER_SECRET`: Required in HTTP mode. Derives deterministic per-tenant wallet encryption passwords.
+- `MCP_DATA_DIR`: Optional. Directory for tenant wallet storage and refresh-token persistence.
+- `MCP_AUTH_CHALLENGE_TTL_SECONDS`: Optional. Wallet-sign challenge TTL.
+- `MCP_OAUTH_AUTH_CODE_TTL_SECONDS`: Optional. Authorization-code TTL.
+- `MCP_OAUTH_ACCESS_TOKEN_TTL_SECONDS`: Optional. OAuth access-token TTL.
+- `MCP_OAUTH_REFRESH_TOKEN_TTL_SECONDS`: Optional. OAuth refresh-token TTL.
 
 #### Network Configuration
 
@@ -132,14 +143,24 @@ npm install
     ```bash
     export TRONGRID_API_KEY="<YOUR_TRONGRID_API_KEY_HERE>"
     ```
+- Optional explicit RPC overrides are also supported:
+  - `TRON_MAINNET_FULL_NODE`
+  - `TRON_MAINNET_SOLIDITY_NODE`
+  - `TRON_MAINNET_EVENT_SERVER`
+  - `TRON_NILE_FULL_NODE`
+  - `TRON_NILE_SOLIDITY_NODE`
+  - `TRON_NILE_EVENT_SERVER`
+  - `TRON_SHASTA_FULL_NODE`
+  - `TRON_SHASTA_SOLIDITY_NODE`
+  - `TRON_SHASTA_EVENT_SERVER`
 
 #### Wallet Configuration
 
-Wallets are managed through `agent-wallet` file-backed configuration. This repository no longer reads or maps legacy `TRON_PRIVATE_KEY` / `TRON_MNEMONIC` / `TRON_ACCOUNT_INDEX` wallet variables.
+Wallets are managed through `agent-wallet` file-backed configuration. In HTTP mode, the server also creates and stores one managed wallet per tenant under its own tenant directory. This repository no longer reads or maps legacy `TRON_PRIVATE_KEY` / `TRON_MNEMONIC` / `TRON_ACCOUNT_INDEX` wallet variables.
 
-> **Prerequisites**: Install and configure [agent-wallet](https://github.com/BofAI/agent-wallet/blob/main/doc/getting-started.md)
+> **Prerequisites**: Install and configure [agent-wallet](https://github.com/MissionSquad/agent-wallet/blob/main/doc/getting-started.md)
 
-> See [`agent-wallet`](https://github.com/BofAI/agent-wallet) for wallet file formats, local setup, and the SDK-supported `AGENT_WALLET_*` settings.
+> See [`agent-wallet`](https://github.com/MissionSquad/agent-wallet) for wallet file formats, local setup, and the SDK-supported `AGENT_WALLET_*` settings.
 
 ### Server Configuration
 
@@ -159,6 +180,30 @@ npm start -- --readonly
 # Start in stateless HTTP mode (Streamable HTTP)
 npm run start:http
 ```
+
+### OAuth2 Compatibility
+
+HTTP mode is now designed for MissionSquad external MCP compatibility:
+
+- transport: `streamable_http`
+- auth mode: `oauth2`
+- grant: authorization code + PKCE
+- registration mode: CIMD
+
+HTTP OAuth endpoints:
+
+- `GET /.well-known/oauth-authorization-server`
+- `GET /.well-known/oauth-protected-resource`
+- `GET /oauth/authorize`
+- `POST /oauth/authorize/challenge`
+- `POST /oauth/authorize/verify`
+- `POST /oauth/authorize/create-wallet`
+- `POST /oauth/token`
+
+The authorization page supports:
+
+- connecting an existing managed wallet by browser-wallet signature proof
+- creating a new managed wallet during authorization and revealing the private key once
 
 ### Docker
 
@@ -218,7 +263,7 @@ Runs the latest version directly from npm via stdio transport.
 **Claude Code:**
 
 ```bash
-claude mcp add mcp-server-tron -- npx -y @bankofai/mcp-server-tron
+claude mcp add mcp-server-tron -- npx -y @missionsquad/mcp-server-tron
 ```
 
 **Cursor** (`.cursor/mcp.json`):
@@ -228,7 +273,7 @@ claude mcp add mcp-server-tron -- npx -y @bankofai/mcp-server-tron
   "mcpServers": {
     "mcp-server-tron": {
       "command": "npx",
-      "args": ["-y", "@bankofai/mcp-server-tron"],
+      "args": ["-y", "@missionsquad/mcp-server-tron"],
       "env": {
         "TRONGRID_API_KEY": "YOUR_KEY_HERE"
       }
@@ -239,12 +284,12 @@ claude mcp add mcp-server-tron -- npx -y @bankofai/mcp-server-tron
 
 #### Option B: Official Hosted Server (Remote)
 
-Connect to the official hosted server at `https://tron-mcp-server.bankofai.io`. No installation required, readonly mode, stateless HTTP.
+Connect to the official hosted server at `https://mcp-tron.missionsquad.ai`. No installation required, readonly mode, stateless HTTP.
 
 **Claude Code:**
 
 ```bash
-claude mcp add -transport http mcp-server-tron https://tron-mcp-server.bankofai.io/mcp
+claude mcp add -transport http mcp-tron https://mcp-tron.missionsquad.ai/mcp
 ```
 
 **Cursor** (`.cursor/mcp.json`):
@@ -252,8 +297,8 @@ claude mcp add -transport http mcp-server-tron https://tron-mcp-server.bankofai.
 ```json
 {
   "mcpServers": {
-    "mcp-server-tron": {
-      "url": "https://tron-mcp-server.bankofai.io/mcp"
+    "mcp-tron": {
+      "url": "https://mcp-tron.missionsquad.ai/mcp"
     }
   }
 }

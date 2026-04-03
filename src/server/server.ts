@@ -12,7 +12,7 @@ export const { version } = require("../../package.json");
 export const MCP_PROTOCOL_VERSION = "2025-11-25";
 
 // Create and start the MCP server
-async function startServer(options: { readOnly?: boolean } = {}) {
+async function startServer(options: { readOnly?: boolean; transport?: "stdio" | "http" } = {}) {
   try {
     // Create a new MCP server instance with capabilities
     const server = new McpServer(
