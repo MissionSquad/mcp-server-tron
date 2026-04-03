@@ -22,6 +22,7 @@
     "start:http": "tsx src/server/http-server.ts",
     "dev:http": "tsx watch src/server/http-server.ts",
     "test": "vitest run",
+    "test:ci": "vitest run --exclude tests/core/services/account-data.test.ts --exclude tests/core/services/account.test.ts --exclude tests/core/services/estimation.test.ts --exclude tests/core/services/events.test.ts --exclude tests/core/services/governance.test.ts --exclude tests/core/services/mempool.test.ts --exclude tests/core/services/multicall.test.ts --exclude tests/core/services/nodes.test.ts --exclude tests/core/services/proposals.test.ts --exclude tests/core/services/services.test.ts --exclude tests/core/tools/account-data-e2e.test.ts --exclude tests/core/tools_integration.test.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepublishOnly": "npm run build",

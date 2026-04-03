@@ -3,14 +3,13 @@ import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import type { OAuthAccessTokenPayload } from "../oauth/types.js";
 import type { TenantManager } from "../tenant/TenantManager.js";
+import type { TenantRecord } from "../tenant/types.js";
 
-declare global {
-  namespace Express {
-    interface Request {
-      tenantAuth?: {
-        tenant: import("../tenant/types.js").TenantRecord;
-      } | null;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    tenantAuth?: {
+      tenant: TenantRecord;
+    } | null;
   }
 }
 

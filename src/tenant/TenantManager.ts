@@ -2,10 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TronWeb } from "tronweb";
-import {
-  TenantWalletProvider,
-  type CreatedTenantWallet,
-} from "@missionsquad/agent-wallet";
+import { TenantWalletProvider, type CreatedTenantWallet } from "@missionsquad/agent-wallet";
 import type { TenantIndex, TenantRecord } from "./types.js";
 
 const PRIMARY_WALLET_ID = "primary" as const;
