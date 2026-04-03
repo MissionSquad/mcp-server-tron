@@ -227,9 +227,7 @@ docker run -d \
 ```
 
 Docker logs are written to the mounted `logs/` directory and are named by date, for example:
-
-- `logs/mcp-server-tron-2026-03-18-combined.log`
-- `logs/mcp-server-tron-2026-03-18-error.log`
+In the current container image, HTTP mode logs go to stdout/stderr so they are visible via `docker logs`.
 
 ### Testing
 

@@ -3,7 +3,7 @@
   "mcpName": "io.github.missionsquad/mcp-server-tron",
   "module": "build/index.js",
   "type": "module",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MCP server for TRON blockchain. Supports TRX/TRC20 transfers, smart contracts, AI prompts & OAuth 2.0",
   "bin": {
     "mcp-server-tron": "./bin/cli.js"
