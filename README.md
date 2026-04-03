@@ -284,12 +284,12 @@ claude mcp add mcp-server-tron -- npx -y @missionsquad/mcp-server-tron
 
 #### Option B: Official Hosted Server (Remote)
 
-Connect to the official hosted server at `https://tron-mcp-server.missionsquad.ai`. No installation required, readonly mode, stateless HTTP.
+Connect to the official hosted server at `https://mcp-tron.missionsquad.ai`. No installation required, readonly mode, stateless HTTP.
 
 **Claude Code:**
 
 ```bash
-claude mcp add -transport http mcp-server-tron https://tron-mcp-server.missionsquad.ai/mcp
+claude mcp add -transport http mcp-tron https://mcp-tron.missionsquad.ai/mcp
 ```
 
 **Cursor** (`.cursor/mcp.json`):
@@ -297,8 +297,8 @@ claude mcp add -transport http mcp-server-tron https://tron-mcp-server.missionsq
 ```json
 {
   "mcpServers": {
-    "mcp-server-tron": {
-      "url": "https://tron-mcp-server.missionsquad.ai/mcp"
+    "mcp-tron": {
+      "url": "https://mcp-tron.missionsquad.ai/mcp"
     }
   }
 }
