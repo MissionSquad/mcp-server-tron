@@ -71,6 +71,7 @@ describe("registerOAuthRoutes", () => {
     expect(metadataRes.body.authorization_endpoint).toBe(
       "https://tron-mcp.example.com/oauth/authorize",
     );
+    expect(metadataRes.body.client_id_metadata_document_supported).toBe(true);
 
     const authorizeRes: any = {
       statusCode: 200,
